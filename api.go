@@ -27,8 +27,8 @@ func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(ctx context.Con
 	return err
 }
 
-func (fsc *FSClient) getEntities(ctx context.Context, req *request, entitiesPtr interface{}) func() ([]interface{}, error) {
-	slice := reflect.Indirect(reflect.ValueOf(entitiesPtr))
+func (fsc *FSClient) getEntities(ctx context.Context, req *request, sliceVal reflect.Value) func() ([]interface{}, error) {
+	slice := sliceVal
 	result := make([]interface{}, 0, slice.Len())
 	asyncFunc := func() error {
 		var nfErr error
@@ -155,9 +155,9 @@ func (fsc *FSClient) createEntity(ctx context.Context, req *request, entity inte
 	return runAsync(ctx, asyncFunc)
 }
 
-func (fsc *FSClient) createEntities(ctx context.Context, req *request, entitiesPtr interface{}) futureFunc {
+func (fsc *FSClient) createEntities(ctx context.Context, req *request, sliceVal reflect.Value) futureFunc {
 	asyncFunc := func() error {
-		slice := reflect.Indirect(reflect.ValueOf(entitiesPtr))
+		slice := sliceVal
 		futures := make([]futureFunc, slice.Len())
 		var errs []string
 
@@ -199,9 +199,9 @@ func (fsc *FSClient) updateEntity(ctx context.Context, req *request, entity inte
 	return runAsync(ctx, asyncFunc)
 }
 
-func (fsc *FSClient) updateEntities(ctx context.Context, req *request, entitiesPtr interface{}) futureFunc {
+func (fsc *FSClient) updateEntities(ctx context.Context, req *request, sliceVal reflect.Value) futureFunc {
 	asyncFunc := func() error {
-		slice := reflect.Indirect(reflect.ValueOf(entitiesPtr))
+		slice := sliceVal
 		futures := make([]futureFunc, slice.Len())
 		var errs []string
 
@@ -240,9 +240,9 @@ func (fsc *FSClient) deleteEntity(ctx context.Context, req *request, entity inte
 	return runAsync(ctx, asyncFunc)
 }
 
-func (fsc *FSClient) deleteEntities(ctx context.Context, req *request, entitiesPtr interface{}) futureFunc {
+func (fsc *FSClient) deleteEntities(ctx context.Context, req *request, sliceVal reflect.Value) futureFunc {
 	asyncFunc := func() error {
-		slice := reflect.Indirect(reflect.ValueOf(entitiesPtr))
+		slice := sliceVal
 		futures := make([]futureFunc, slice.Len())
 		var errs []string
 

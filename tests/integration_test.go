@@ -31,7 +31,7 @@ func TestCRUD(t *testing.T) {
 	car.Year, _ = time.Parse(time.RFC3339, "2001-01-01T00:00:00.000Z")
 
 	// Create the entity
-	fsc.NewRequest().CreateEntity(ctx, car)()
+	fsc.NewRequest().CreateEntities(ctx, car)()
 
 	if car.ID == "" {
 		t.Errorf("car should have an auto generated ID")
@@ -39,7 +39,7 @@ func TestCRUD(t *testing.T) {
 
 	// Read the entity by ID
 	otherCar := &Car{ID: car.ID}
-	fsc.NewRequest().GetEntity(ctx, otherCar)()
+	fsc.NewRequest().GetEntities(ctx, otherCar)()
 	if otherCar.Make != "Toyota" {
 		t.Errorf("car should have name: Toyota but was: %s", otherCar.Make)
 	}
@@ -49,19 +49,19 @@ func TestCRUD(t *testing.T) {
 
 	// Update the entity
 	car.Make = "Jeep"
-	fsc.NewRequest().UpdateEntity(ctx, car)()
+	fsc.NewRequest().UpdateEntities(ctx, car)()
 
 	otherCar = &Car{ID: car.ID}
-	fsc.NewRequest().GetEntity(ctx, otherCar)()
+	fsc.NewRequest().GetEntities(ctx, otherCar)()
 	if otherCar.Make != "Jeep" {
 		t.Errorf("car should have name: Jeep but was: %s", otherCar.Make)
 	}
 
 	// Delete the entity
-	fsc.NewRequest().DeleteEntity(ctx, car)()
+	fsc.NewRequest().DeleteEntities(ctx, car)()
 
 	otherCar = &Car{ID: car.ID}
-	if err := fsc.NewRequest().GetEntity(ctx, otherCar)(); err == nil {
+	if _, err := fsc.NewRequest().GetEntities(ctx, otherCar)(); err == nil {
 		t.Errorf("We expect a NotFoundError")
 	}
 }
@@ -71,7 +71,7 @@ func TestSearch(t *testing.T) {
 	car.ID = "testID"
 	car.Make = "Toyota"
 
-	fsc.NewRequest().CreateEntity(ctx, car)()
+	fsc.NewRequest().CreateEntities(ctx, car)()
 	defer cleanup(car)
 
 	query := fsc.Client.Collection("Car").Where("make", "==", "Toyota")
@@ -99,7 +99,7 @@ func TestConcurrency(t *testing.T) {
 	car := &Car{Make: "Toyota"}
 
 	// Create the entity
-	future := fsc.NewRequest().CreateEntity(ctx, car)
+	future := fsc.NewRequest().CreateEntities(ctx, car)
 	defer cleanup(car)
 	if car.ID != "" {
 		t.Errorf("car ID should not have been set yet")
@@ -158,7 +158,7 @@ func TestAutoLoad(t *testing.T) {
 
 	// Read the entity by ID
 	otherCar := &Car{ID: car.ID}
-	fsc.NewRequest().GetEntity(ctx, otherCar)()
+	fsc.NewRequest().GetEntities(ctx, otherCar)()
 	if otherCar.Make != "Toyota" && otherCar.Driver.Name == "Mark" &&
 		len(otherCar.Tags) == 2 && len(otherCar.Numbers) == 3 {
 		t.Errorf("saved element did not match original: %s", otherCar.Make)
@@ -166,21 +166,21 @@ func TestAutoLoad(t *testing.T) {
 
 	// Read the car and its owner in one go. Note passengers are not loaded
 	otherCar = &Car{ID: car.ID}
-	fsc.NewRequest().SetLoadPaths("owner").GetEntity(ctx, otherCar)()
+	fsc.NewRequest().SetLoadPaths("owner").GetEntities(ctx, otherCar)()
 	if otherCar.Owner.ID != john.ID && len(otherCar.Passengers) == 0 {
 		t.Errorf("The owners are the same so the IDs should be equal: %s", otherCar.Owner.ID)
 	}
 
 	// Read all references on the car
 	otherCar = &Car{ID: car.ID}
-	fsc.NewRequest().SetLoadPaths(firestorm.AllEntities).GetEntity(ctx, otherCar)()
+	fsc.NewRequest().SetLoadPaths(firestorm.AllEntities).GetEntities(ctx, otherCar)()
 	if otherCar.Owner.ID != john.ID || len(otherCar.Passengers) != 2 || otherCar.Passengers[0].ID != john.ID {
 		t.Errorf("The owner and passengers should have been loaded: %v", otherCar)
 	}
 
 	// Also read the Spouses
 	otherCar = &Car{ID: car.ID}
-	fsc.NewRequest().SetLoadPaths(firestorm.AllEntities, "passengers.spouse").GetEntity(ctx, otherCar)()
+	fsc.NewRequest().SetLoadPaths(firestorm.AllEntities, "passengers.spouse").GetEntities(ctx, otherCar)()
 	if otherCar.Passengers[0].Spouse == nil || otherCar.Passengers[0].Spouse.ID != mary.ID ||
 		otherCar.Passengers[1].Spouse == nil || otherCar.Passengers[1].Spouse.ID != john.ID {
 		t.Errorf("The owner and passengers should have been loaded: %v", otherCar)
@@ -204,14 +204,14 @@ func TestCycles(t *testing.T) {
 
 	// Using auto load that is much simpler. Load John and spouse in one go
 	john = &Person{ID: john.ID}
-	fsc.NewRequest().SetLoadPaths("spouse").GetEntity(ctx, john)()
+	fsc.NewRequest().SetLoadPaths("spouse").GetEntities(ctx, john)()
 	if john.Spouse == nil || john.Spouse.ID != mary.ID {
 		t.Errorf("Johns spouse should have been loaded: %v", john.Spouse)
 	}
 
 	// Also the back reference has been resolved to john
 	john = &Person{ID: john.ID}
-	fsc.NewRequest().SetLoadPaths("spouse", "spouse.spouse").GetEntity(ctx, john)()
+	fsc.NewRequest().SetLoadPaths("spouse", "spouse.spouse").GetEntities(ctx, john)()
 	if john.Spouse.Spouse.ID != john.ID {
 		t.Errorf("Johns spouse's spouse should be John: %v", john.Spouse.Spouse)
 	}
@@ -231,17 +231,17 @@ func TestTransactions(t *testing.T) {
 	fsc.DoInTransaction(ctx, func(transCtx context.Context) error {
 
 		// Create the entity in the transaction using the transCtx
-		fsc.NewRequest().CreateEntity(transCtx, car)()
+		fsc.NewRequest().CreateEntities(transCtx, car)()
 
 		// Using the transCtx we can load the entity as it is saved in the session context
 		otherCar := &Car{ID: car.ID}
-		fsc.NewRequest().GetEntity(transCtx, otherCar)()
+		fsc.NewRequest().GetEntities(transCtx, otherCar)()
 		if otherCar.Make != car.Make {
 			t.Errorf("The car should have been saved in the transaction context")
 		}
 
 		// Loading using an other context (request) will fail as the car is not created until the func returns successfully
-		if err := fsc.NewRequest().GetEntity(ctx, &Car{ID: car.ID})(); err == nil {
+		if _, err := fsc.NewRequest().GetEntities(ctx, &Car{ID: car.ID})(); err == nil {
 			t.Errorf("We expect a NotFoundError")
 		}
 
@@ -252,7 +252,7 @@ func TestTransactions(t *testing.T) {
 
 	// Now we can load the car as the transaction has been committed
 	otherCar := &Car{ID: car.ID}
-	fsc.NewRequest().GetEntity(ctx, otherCar)()
+	fsc.NewRequest().GetEntities(ctx, otherCar)()
 	if otherCar.Make != "Toyota" {
 		t.Errorf("car should have name: Toyota but was: %s", otherCar.Make)
 	}
@@ -273,7 +273,7 @@ func TestAnonymousStructs(t *testing.T) {
 	sub.LocalName = "sub"
 
 	// Create the entity
-	fsc.NewRequest().CreateEntity(ctx, sub)()
+	fsc.NewRequest().CreateEntities(ctx, sub)()
 	defer cleanup(sub)
 
 	if sub.ID == "" {
@@ -283,7 +283,7 @@ func TestAnonymousStructs(t *testing.T) {
 	// Read the entity by ID
 	otherSub := &SubMoao{}
 	otherSub.ID = sub.ID
-	fsc.NewRequest().GetEntity(ctx, otherSub)()
+	fsc.NewRequest().GetEntities(ctx, otherSub)()
 	if otherSub.unexportedName != sub.unexportedName {
 		t.Errorf("name should match: %s", otherSub.unexportedName)
 	}

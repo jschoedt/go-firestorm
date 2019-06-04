@@ -102,42 +102,68 @@ func (req *request) ToRef(entity interface{}) *firestore.DocumentRef {
 	return req.ToCollection(entity).Doc(req.GetID(entity))
 }
 
-func (req *request) GetEntity(ctx context.Context, entity interface{}) futureFunc {
-	f := req.FSC.getEntities(ctx, req, &[]interface{}{entity})
-	return func() error {
-		_, err := f()
-		return err
+// Reads the entities from the database by their id. Supply either a pointer to a struct or pointer to a slice. Returns a
+// slice containing the found entities and an error if some entities are not found.
+func (req *request) GetEntities(ctx context.Context, entities interface{}) func() ([]interface{}, error) {
+	v := reflect.Indirect(reflect.ValueOf(entities))
+	switch v.Kind() {
+	case reflect.Struct:
+		v = reflect.ValueOf([]interface{}{entities})
+		fallthrough
+	case reflect.Slice:
+		return req.FSC.getEntities(ctx, req, v)
+	}
+	return func() (i []interface{}, e error) {
+		return nil, errors.New(fmt.Sprintf("Kind not supported: %s", v.Kind().String()))
 	}
 }
 
-func (req *request) GetEntities(ctx context.Context, entities interface{}) func() ([]interface{}, error) {
-	return req.FSC.getEntities(ctx, req, entities)
-}
-
-func (req *request) CreateEntity(ctx context.Context, entity interface{}) futureFunc {
-	return req.FSC.createEntity(ctx, req, entity)
-}
-
+// Creates the entities and auto creates the id if left empty. Supply either a struct or a slice
+// as value or reference.
 func (req *request) CreateEntities(ctx context.Context, entities interface{}) futureFunc {
-	return req.FSC.createEntities(ctx, req, entities)
+	v := reflect.Indirect(reflect.ValueOf(entities))
+	switch v.Kind() {
+	case reflect.Struct:
+		return req.FSC.createEntity(ctx, req, entities)
+	case reflect.Slice:
+		return req.FSC.createEntities(ctx, req, v)
+	}
+	return createErrorFunc(fmt.Sprintf("Kind not supported: %s", v.Kind().String()))
 }
 
-func (req *request) UpdateEntity(ctx context.Context, entity interface{}) futureFunc {
-	return req.FSC.updateEntity(ctx, req, entity)
-}
-
+// Updates the entities. Supply either a struct or a slice
+// as value or reference.
 func (req *request) UpdateEntities(ctx context.Context, entities interface{}) futureFunc {
-	return req.FSC.updateEntities(ctx, req, entities)
+	v := reflect.Indirect(reflect.ValueOf(entities))
+	switch v.Kind() {
+	case reflect.Struct:
+		return req.FSC.updateEntity(ctx, req, entities)
+	case reflect.Slice:
+		return req.FSC.updateEntities(ctx, req, v)
+	}
+	return createErrorFunc(fmt.Sprintf("Kind not supported: %s", v.Kind().String()))
 }
 
+// Delete the entities. Supply either a struct or a slice
+// as value or reference.
 func (req *request) DeleteEntities(ctx context.Context, entities interface{}) futureFunc {
-	return req.FSC.deleteEntities(ctx, req, entities)
+	v := reflect.Indirect(reflect.ValueOf(entities))
+	switch v.Kind() {
+	case reflect.Struct:
+		return req.FSC.deleteEntity(ctx, req, entities)
+	case reflect.Slice:
+		return req.FSC.deleteEntities(ctx, req, v)
+	}
+	return createErrorFunc(fmt.Sprintf("Kind not supported: %s", v.Kind().String()))
 }
 
-func (req *request) DeleteEntity(ctx context.Context, entity interface{}) futureFunc {
-	return req.FSC.deleteEntity(ctx, req, entity)
-}
-
+// Query for entities. Supply a reference to a slice for the result
 func (req *request) QueryEntities(ctx context.Context, query firestore.Query, toSlicePtr interface{}) futureFunc {
 	return req.FSC.queryEntities(ctx, req, query, toSlicePtr)
+}
+
+func createErrorFunc(s string) func() error {
+	return func() error {
+		return errors.New(s)
+	}
 }

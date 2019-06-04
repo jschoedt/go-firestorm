@@ -12,12 +12,12 @@ import (
 type request struct {
 	FSC        *FSClient
 	loadPaths  []string
-	mapperFunc MapperFunc
+	mapperFunc mapperFunc
 }
 
-type MapperFunc func(map[string]interface{})
+type mapperFunc func(map[string]interface{})
 
-func (req *request) SetMapperFunc(mapperFunc MapperFunc) *request {
+func (req *request) SetMapperFunc(mapperFunc mapperFunc) *request {
 	req.mapperFunc = mapperFunc
 	return req
 }

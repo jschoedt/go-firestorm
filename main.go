@@ -11,7 +11,7 @@ type FSClient struct {
 	MapToDB          *mapper.Mapper
 	MapFromDB        *mapper.Mapper
 	IDKey, ParentKey string
-	Cache            *CacheWrapper
+	Cache            *cacheWrapper
 	IsEntity         func(i interface{}) bool
 }
 
@@ -35,7 +35,7 @@ func New(client *firestore.Client, id, parent string) *FSClient {
 	c.MapFromDB.MapperFunc = c.DefaultFromDBMapperFunc
 	c.IDKey = strings.ToLower(id)
 	c.ParentKey = strings.ToLower(parent)
-	c.Cache = NewCacheWrapper(client, newDefaultCache(), nil)
+	c.Cache = newCacheWrapper(client, newDefaultCache(), nil)
 	c.IsEntity = isEntity(c.IDKey)
 	return c
 }

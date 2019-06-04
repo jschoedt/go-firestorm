@@ -16,7 +16,7 @@ func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(ctx context.Con
 		// TODO: add a new cache to context
 		m := make(map[string]interface{})
 		tctx := context.WithValue(ctx, crud.ContextKeyTransaction, t)
-		tctx = context.WithValue(tctx, ContextKeySCache, m)
+		tctx = context.WithValue(tctx, contextKeySCache, m)
 		result := f(tctx)
 		// update parent cache
 		return result
@@ -41,7 +41,7 @@ func (fsc *FSClient) getEntities(ctx context.Context, req *request, sliceVal ref
 			return err
 		}
 
-		resolver := NewResolver(fsc, req.loadPaths...)
+		resolver := newResolver(fsc, req.loadPaths...)
 		res, err := resolver.ResolveCacheRef(ctx, crefs)
 
 		if err != nil {
@@ -67,8 +67,8 @@ func (fsc *FSClient) getEntities(ctx context.Context, req *request, sliceVal ref
 	}
 }
 
-func (fsc *FSClient) getCachedEntities(ctx context.Context, refs []*firestore.DocumentRef) ([]CacheRef, error) {
-	res := make([]CacheRef, len(refs))
+func (fsc *FSClient) getCachedEntities(ctx context.Context, refs []*firestore.DocumentRef) ([]cacheRef, error) {
+	res := make([]cacheRef, len(refs))
 	load := make([]*firestore.DocumentRef, 0, len(refs))
 
 	// check cache and collect refs not loaded yet
@@ -93,7 +93,7 @@ func (fsc *FSClient) getCachedEntities(ctx context.Context, refs []*firestore.Do
 	i := 0
 	multi := make(map[string]map[string]interface{}, len(docs))
 	for _, doc := range docs {
-		ref := NewCacheRef(doc.Data(), doc.Ref)
+		ref := newCacheRef(doc.Data(), doc.Ref)
 		multi[doc.Ref.Path] = doc.Data()
 		for _, v := range res[i:] {
 			if v.Ref == nil {
@@ -123,7 +123,7 @@ func (fsc *FSClient) queryEntities(ctx context.Context, req *request, query fire
 		if err = fsc.Cache.SetMulti(ctx, multi, true); err != nil {
 			log.Printf("Cache error but continue: %+v", err)
 		}
-		resolver := NewResolver(fsc, req.loadPaths...)
+		resolver := newResolver(fsc, req.loadPaths...)
 		if res, err := resolver.ResolveDocs(ctx, docs); err != nil {
 			return err
 		} else {

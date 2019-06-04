@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ContextKeySCache = contextKey("sessionCache")
+	contextKeySCache = contextKey("sessionCache")
 	CacheMiss        = errors.New("not found in cache")
 )
 
@@ -32,21 +32,21 @@ type Cache interface {
 	DeleteMulti(c context.Context, keys []string) error
 }
 
-type CacheWrapper struct {
+type cacheWrapper struct {
 	client *firestore.Client
 	first  Cache
 	second Cache
 }
 
-func NewCacheWrapper(client *firestore.Client, first Cache, second Cache) *CacheWrapper {
-	cw := &CacheWrapper{}
+func newCacheWrapper(client *firestore.Client, first Cache, second Cache) *cacheWrapper {
+	cw := &cacheWrapper{}
 	cw.client = client
 	cw.first = first
 	cw.second = second
 	return cw
 }
 
-func (c *CacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef, deep bool) (CacheRef, error) {
+func (c *cacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef, deep bool) (cacheRef, error) {
 	m := make(map[string]interface{})
 	err := c.first.Get(ctx, ref.Path, &m)
 	if err == CacheMiss && deep && c.second != nil {
@@ -54,7 +54,7 @@ func (c *CacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef, deep
 	}
 	c.makeUnCachable(m)
 	//log.Printf("Get: ID: %v - %+v\n", ref.Path, m)
-	return NewCacheRef(m, ref), err
+	return newCacheRef(m, ref), err
 }
 
 /*
@@ -72,7 +72,7 @@ func (c *CacheWrapper) GetMulti(ctx context.Context, keys []string, deep bool) (
 
 */
 
-func (c *CacheWrapper) Set(ctx context.Context, key string, item map[string]interface{}, deep bool) error {
+func (c *cacheWrapper) Set(ctx context.Context, key string, item map[string]interface{}, deep bool) error {
 	//log.Printf("Set: ID: %v - %+v\n", key, item)
 	c.makeCachable(item)
 	if err := c.first.Set(ctx, key, item); err != nil {
@@ -84,7 +84,7 @@ func (c *CacheWrapper) Set(ctx context.Context, key string, item map[string]inte
 	return nil
 }
 
-func (c *CacheWrapper) SetMulti(ctx context.Context, items map[string]map[string]interface{}, deep bool) error {
+func (c *cacheWrapper) SetMulti(ctx context.Context, items map[string]map[string]interface{}, deep bool) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -103,7 +103,7 @@ func (c *CacheWrapper) SetMulti(ctx context.Context, items map[string]map[string
 	return nil
 }
 
-func (c *CacheWrapper) Delete(ctx context.Context, key string, deep bool) error {
+func (c *cacheWrapper) Delete(ctx context.Context, key string, deep bool) error {
 	if err := c.first.Delete(ctx, key); err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (c *CacheWrapper) Delete(ctx context.Context, key string, deep bool) error 
 	return nil
 }
 
-func (c *CacheWrapper) DeleteMulti(ctx context.Context, keys []string, deep bool) error {
+func (c *cacheWrapper) DeleteMulti(ctx context.Context, keys []string, deep bool) error {
 	if len(keys) == 0 {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (c *CacheWrapper) DeleteMulti(ctx context.Context, keys []string, deep bool
 	return nil
 }
 
-func (c *CacheWrapper) makeCachable(m map[string]interface{}) {
+func (c *cacheWrapper) makeCachable(m map[string]interface{}) {
 	const sep = "/documents/" // for some reason Firestore cant use the full path so cut it
 	for k, v := range m {
 		switch val := v.(type) {
@@ -154,7 +154,7 @@ func (c *CacheWrapper) makeCachable(m map[string]interface{}) {
 	}
 }
 
-func (c *CacheWrapper) makeUnCachable(m map[string]interface{}) {
+func (c *cacheWrapper) makeUnCachable(m map[string]interface{}) {
 	for k, v := range m {
 		if strings.HasSuffix(k, cacheElement) {
 			m[strings.Replace(k, cacheElement, "", -1)] = c.client.Doc(v.(string))
@@ -238,9 +238,9 @@ func (c *defaultCache) DeleteMulti(ctx context.Context, keys []string) error {
 }
 
 func getSessionCache(ctx context.Context) map[string]interface{} {
-	if c, ok := ctx.Value(ContextKeySCache).(map[string]interface{}); ok {
+	if c, ok := ctx.Value(contextKeySCache).(map[string]interface{}); ok {
 		return c
 	}
-	//log.Println("ContextKeySCache is not found in context. Will use empty cache (no cache)")
+	//log.Println("contextKeySCache is not found in context. Will use empty cache (no cache)")
 	return make(map[string]interface{})
 }

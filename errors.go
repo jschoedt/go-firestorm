@@ -9,7 +9,7 @@ type NotFoundError struct {
 	Refs map[string]*firestore.DocumentRef
 }
 
-func NewNotFoundError(refs map[string]*firestore.DocumentRef) NotFoundError {
+func newNotFoundError(refs map[string]*firestore.DocumentRef) NotFoundError {
 	return NotFoundError{refs}
 }
 

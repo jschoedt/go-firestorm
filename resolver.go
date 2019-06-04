@@ -82,11 +82,11 @@ type resolver struct {
 	paths    []string
 }
 
-func NewResolver(fsc *FSClient, paths ...string) *resolver {
+func newResolver(fsc *FSClient, paths ...string) *resolver {
 	return &resolver{fsc, make(map[string]entityMap), make(map[string]entityMap), paths}
 }
 
-func (r *resolver) ResolveCacheRef(ctx context.Context, crefs []CacheRef) ([]entityMap, error) {
+func (r *resolver) ResolveCacheRef(ctx context.Context, crefs []cacheRef) ([]entityMap, error) {
 	nfRefs := make(map[string]*firestore.DocumentRef)
 	result := make([]entityMap, len(crefs))
 	r.Loaded(crefs)
@@ -106,7 +106,7 @@ func (r *resolver) ResolveCacheRef(ctx context.Context, crefs []CacheRef) ([]ent
 		return nil, err
 	}
 	if len(nfRefs) > 0 {
-		return result, NewNotFoundError(nfRefs)
+		return result, newNotFoundError(nfRefs)
 	}
 	return result, nil
 }
@@ -129,7 +129,7 @@ func (r *resolver) ResolveDocs(ctx context.Context, docs []*firestore.DocumentSn
 		return nil, err
 	}
 	if len(nfRefs) > 0 {
-		return result, NewNotFoundError(nfRefs)
+		return result, newNotFoundError(nfRefs)
 	}
 	return result, nil
 }
@@ -227,7 +227,7 @@ func (r *resolver) contains(find string, paths ...string) bool {
 	return false
 }
 
-func (r *resolver) Loaded(refs []CacheRef) {
+func (r *resolver) Loaded(refs []cacheRef) {
 	for _, v := range refs {
 		r.loaded[v.Ref.Path] = v.GetResult()
 	}

@@ -62,7 +62,7 @@ func TestCRUD(t *testing.T) {
 
 	otherCar = &Car{ID: car.ID}
 	if _, err := fsc.NewRequest().GetEntities(ctx, otherCar)(); err == nil {
-		t.Errorf("We expect a NotFoundError")
+		t.Errorf("We expect a notFoundError")
 	}
 }
 
@@ -242,7 +242,7 @@ func TestTransactions(t *testing.T) {
 
 		// Loading using an other context (request) will fail as the car is not created until the func returns successfully
 		if _, err := fsc.NewRequest().GetEntities(ctx, &Car{ID: car.ID})(); err == nil {
-			t.Errorf("We expect a NotFoundError")
+			t.Errorf("We expect a notFoundError")
 		}
 
 		return nil

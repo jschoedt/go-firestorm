@@ -4,15 +4,15 @@ import (
 	"cloud.google.com/go/firestore"
 )
 
-type CacheRef struct {
+type cacheRef struct {
 	result map[string]interface{}
 	Ref    *firestore.DocumentRef
 }
 
-func (ref CacheRef) GetResult() map[string]interface{} {
+func (ref cacheRef) GetResult() map[string]interface{} {
 	return ref.result
 }
 
-func NewCacheRef(result map[string]interface{}, ref *firestore.DocumentRef) CacheRef {
-	return CacheRef{result: result, Ref: ref}
+func newCacheRef(result map[string]interface{}, ref *firestore.DocumentRef) cacheRef {
+	return cacheRef{result: result, Ref: ref}
 }

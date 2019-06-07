@@ -2,6 +2,9 @@
 Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relational_mapping)) for [Google Cloud Firestore](https://cloud.google.com/firestore/). 
 Still very early stage so things may change.
 
+[![pipeline status](https://gitlab.com/jens.schoedt/go-firestorm/badges/master/pipeline.svg)](https://gitlab.com/jens.schoedt/go-firestorm/commits/master)
+[![coverage report](https://gitlab.com/jens.schoedt/go-firestorm/badges/master/coverage.svg)](https://gitlab.com/jens.schoedt/go-firestorm/commits/master)
+
 #### Goals
 1. Easy to use
 2. Non intrusive
@@ -50,7 +53,10 @@ Parent is optional. The id field must be a string but can be called anything.
 client, _ := app.Firestore(ctx)
 fsc := firestorm.New(client, "ID", "")
 ```
-
+3. Optional. For optimal caching to work consider adding the CacheHandler
+```go
+http.HandleFunc("/", firestorm.CacheHandler(otherHandler))
+```
 #### Basic CRUD example
 **Note:** Recursive Create/Delete is not supported and must be called on every entity.
 So to create an A->B relation. Create B first so the B.ID has been created and the create A.
@@ -128,8 +134,9 @@ if result[0].ID != car.ID || result[0].Make != car.Make {
 [More examples](https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go)
 
 #### Concurrent requests
-All CRUD operations are asynchronous and return a future func that when called blocks until the operation is done.
+All CRUD operations are asynchronous and return a future func that when called will block until the operation is done.
 
+**NOTE:** the state of the entities is undefined until the future func returns.   
 ```go
 car := &Car{Make:"Toyota"}
 

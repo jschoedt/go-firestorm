@@ -96,6 +96,9 @@ func TestSearch(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	car := &Car{Make: "Toyota"}
 
 	// Create the entity

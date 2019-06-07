@@ -1,0 +1,28 @@
+image: golang:1.11
+
+cache:
+  paths:
+    - .cache
+
+
+stages:
+  - test
+  - build
+
+before_script:
+  - mkdir -p auth && touch auth/sn-prod.json
+  - echo $FIREBASE_SERVICE_ACCOUNT > auth/sn-dev.json
+  - mkdir -p .cache
+  - export GOPATH="$CI_PROJECT_DIR/.cache"
+
+unit_tests:
+  stage: test
+  script:
+    - go test ./...
+    - go test -race -short ./...
+    - go test -cover ./...
+
+build:
+  stage: build
+  script:
+    - go build -i

@@ -4,6 +4,8 @@ import (
 	"cloud.google.com/go/firestore"
 	"context"
 	"errors"
+	"log"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
@@ -12,6 +14,7 @@ import (
 var (
 	contextKeySCache = contextKey("sessionCache")
 	CacheMiss        = errors.New("not found in cache")
+	logOnce          sync.Once
 )
 
 const cacheElement = "_cacheElement"
@@ -21,6 +24,13 @@ type contextKey string
 
 func (c contextKey) String() string {
 	return "context key " + string(c)
+}
+
+func CacheHandler(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), contextKeySCache, make(map[string]interface{}))
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 type Cache interface {
@@ -241,6 +251,8 @@ func getSessionCache(ctx context.Context) map[string]interface{} {
 	if c, ok := ctx.Value(contextKeySCache).(map[string]interface{}); ok {
 		return c
 	}
-	//log.Println("contextKeySCache is not found in context. Will use empty cache (no cache)")
+	logOnce.Do(func() {
+		log.Println("Warning. Consider adding the CacheHandler middleware for the session cache to work")
+	})
 	return make(map[string]interface{})
 }

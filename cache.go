@@ -13,8 +13,9 @@ import (
 
 var (
 	contextKeySCache = contextKey("sessionCache")
-	CacheMiss        = errors.New("not found in cache")
-	logOnce          sync.Once
+	// Error returned on a cache miss
+	CacheMissError = errors.New("not found in cache")
+	logOnce        sync.Once
 )
 
 const cacheElement = "_cacheElement"
@@ -26,6 +27,8 @@ func (c contextKey) String() string {
 	return "context key " + string(c)
 }
 
+// CacheHandler should be used on the mux chain to support session cache.
+// So getting the same entity several times will only generate on DB hit
 func CacheHandler(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), contextKeySCache, make(map[string]interface{}))
@@ -59,7 +62,7 @@ func newCacheWrapper(client *firestore.Client, first Cache, second Cache) *cache
 func (c *cacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef, deep bool) (cacheRef, error) {
 	m := make(map[string]interface{})
 	err := c.first.Get(ctx, ref.Path, &m)
-	if err == CacheMiss && deep && c.second != nil {
+	if err == CacheMissError && deep && c.second != nil {
 		err = c.second.Get(ctx, ref.Path, &m)
 	}
 	c.makeUnCachable(m)
@@ -193,7 +196,7 @@ func (c *defaultCache) Get(ctx context.Context, key string, v interface{}) error
 	c.RLock()
 	defer c.RUnlock()
 	if e, ok := getSessionCache(ctx)[key]; !ok {
-		return CacheMiss
+		return CacheMissError
 	} else {
 		// set the value using reflection
 		val := reflect.Indirect(reflect.ValueOf(v))

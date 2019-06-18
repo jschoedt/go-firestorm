@@ -5,7 +5,10 @@ import (
 	"fmt"
 )
 
+// NotFoundError is returned when any of the entities are not found in firestore
+// The error can be ignored if dangling references is not a problem
 type NotFoundError struct {
+	// Refs contains the references not found
 	Refs map[string]*firestore.DocumentRef
 }
 

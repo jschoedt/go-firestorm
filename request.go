@@ -17,16 +17,23 @@ type request struct {
 
 type mapperFunc func(map[string]interface{})
 
+// SetMapperFunc is called before the map is saved to firestore.
+// This can be used to modify the map before it is saved
 func (req *request) SetMapperFunc(mapperFunc mapperFunc) *request {
 	req.mapperFunc = mapperFunc
 	return req
 }
 
+// SetLoadPaths adds the paths (refs) to load for the entity.
+// Eg. to load a users grandmother: 'mother.mother'
+// To load all refs on the struct use firestorm.AllEntities
+// See examples: https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go
 func (req *request) SetLoadPaths(paths ...string) *request {
 	req.loadPaths = paths
 	return req
 }
 
+// ToCollection creates a firestore CollectionRef to the entity
 func (req *request) ToCollection(entity interface{}) *firestore.CollectionRef {
 	path := getTypeName(entity)
 
@@ -39,6 +46,7 @@ func (req *request) ToCollection(entity interface{}) *firestore.CollectionRef {
 	return req.FSC.Client.Collection(path)
 }
 
+// GetParent gets the patent of the entity
 func (req *request) GetParent(entity interface{}) interface{} {
 	if v, err := getIDValue(req.FSC.ParentKey, entity); err != nil {
 		return nil
@@ -47,6 +55,7 @@ func (req *request) GetParent(entity interface{}) interface{} {
 	}
 }
 
+// GetID gets the id of the entity. It panics if the entity does not have an ID field.
 func (req *request) GetID(entity interface{}) string {
 	if v, err := getIDValue(req.FSC.IDKey, entity); err != nil {
 		panic(err)
@@ -87,9 +96,10 @@ func getIDValue(id string, entity interface{}) (reflect.Value, error) {
 		}
 		*/
 	}
-	return v, errors.New(fmt.Sprintf("Entity has no id field defined: %v", entity))
+	return v, fmt.Errorf("entity has no id field defined: %v", entity)
 }
 
+// SetID sets the id field to the given id
 func (req *request) SetID(entity interface{}, id string) {
 	v, err := getIDValue(req.FSC.IDKey, entity)
 	if err != nil {
@@ -98,11 +108,12 @@ func (req *request) SetID(entity interface{}, id string) {
 	v.SetString(id)
 }
 
+// ToRef creates a firestore DocumentRef for the entity
 func (req *request) ToRef(entity interface{}) *firestore.DocumentRef {
 	return req.ToCollection(entity).Doc(req.GetID(entity))
 }
 
-// Reads the entities from the database by their id. Supply either a pointer to a struct or pointer to a slice. Returns a
+// GetEntities reads the entities from the database by their id. Supply either a pointer to a struct or pointer to a slice. Returns a
 // slice containing the found entities and an error if some entities are not found.
 func (req *request) GetEntities(ctx context.Context, entities interface{}) func() ([]interface{}, error) {
 	v := reflect.Indirect(reflect.ValueOf(entities))
@@ -114,11 +125,11 @@ func (req *request) GetEntities(ctx context.Context, entities interface{}) func(
 		return req.FSC.getEntities(ctx, req, v)
 	}
 	return func() (i []interface{}, e error) {
-		return nil, errors.New(fmt.Sprintf("Kind not supported: %s", v.Kind().String()))
+		return nil, fmt.Errorf("kind not supported: %s", v.Kind().String())
 	}
 }
 
-// Creates the entities and auto creates the id if left empty. Supply either a struct or a slice
+// CreateEntities creates the entities and auto creates the id if left empty. Supply either a struct or a slice
 // as value or reference.
 func (req *request) CreateEntities(ctx context.Context, entities interface{}) futureFunc {
 	v := reflect.Indirect(reflect.ValueOf(entities))
@@ -128,10 +139,10 @@ func (req *request) CreateEntities(ctx context.Context, entities interface{}) fu
 	case reflect.Slice:
 		return req.FSC.createEntities(ctx, req, v)
 	}
-	return createErrorFunc(fmt.Sprintf("Kind not supported: %s", v.Kind().String()))
+	return createErrorFunc(fmt.Sprintf("kind not supported: %s", v.Kind().String()))
 }
 
-// Updates the entities. Supply either a struct or a slice
+// UpdateEntities updates the entities. Supply either a struct or a slice
 // as value or reference.
 func (req *request) UpdateEntities(ctx context.Context, entities interface{}) futureFunc {
 	v := reflect.Indirect(reflect.ValueOf(entities))
@@ -144,7 +155,7 @@ func (req *request) UpdateEntities(ctx context.Context, entities interface{}) fu
 	return createErrorFunc(fmt.Sprintf("Kind not supported: %s", v.Kind().String()))
 }
 
-// Delete the entities. Supply either a struct or a slice
+// DeleteEntities deletes the entities. Supply either a struct or a slice
 // as value or reference.
 func (req *request) DeleteEntities(ctx context.Context, entities interface{}) futureFunc {
 	v := reflect.Indirect(reflect.ValueOf(entities))
@@ -157,7 +168,7 @@ func (req *request) DeleteEntities(ctx context.Context, entities interface{}) fu
 	return createErrorFunc(fmt.Sprintf("Kind not supported: %s", v.Kind().String()))
 }
 
-// Query for entities. Supply a reference to a slice for the result
+// QueryEntities query for entities. Supply a reference to a slice for the result
 func (req *request) QueryEntities(ctx context.Context, query firestore.Query, toSlicePtr interface{}) futureFunc {
 	return req.FSC.queryEntities(ctx, req, query, toSlicePtr)
 }

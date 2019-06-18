@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// AllEntities loads all paths on the struct see: SetLoadPaths
 const AllEntities = "ALL"
 
 var refType = reflect.TypeOf((*firestore.DocumentRef)(nil))

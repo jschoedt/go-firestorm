@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// FSClient is the client used to perform the CRUD actions
 type FSClient struct {
 	Client           *firestore.Client
 	MapToDB          *mapper.Mapper
@@ -15,6 +16,7 @@ type FSClient struct {
 	IsEntity         func(i interface{}) bool
 }
 
+// NewRequest creates a new CRUD request to firestore
 func (fsc *FSClient) NewRequest() *request {
 	r := &request{}
 	r.FSC = fsc
@@ -24,8 +26,8 @@ func (fsc *FSClient) NewRequest() *request {
 	return r
 }
 
-// Create a firestorm client and supply the names of the id and parent fields of your model structs
-// Leave parent blank if not needed
+// New creates a firestorm client. Supply the names of the id and parent fields of your model structs
+// Leave parent blank if sub-collections are not used.
 func New(client *firestore.Client, id, parent string) *FSClient {
 	c := &FSClient{}
 	c.Client = client

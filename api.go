@@ -11,6 +11,9 @@ import (
 	"sync"
 )
 
+// DoInTransaction wraps any updates that needs to run in a transaction.
+// Use the f Context for any calls that need to be part of the transaction.
+// Do reads before writes as required by firestore
 func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(ctx context.Context) error) error {
 	err := fsc.Client.RunTransaction(ctx, func(ctx context.Context, t *firestore.Transaction) error {
 		// TODO: add a new cache to context
@@ -76,7 +79,7 @@ func (fsc *FSClient) getCachedEntities(ctx context.Context, refs []*firestore.Do
 		if e, err := fsc.Cache.Get(ctx, ref, true); err == nil {
 			res[i] = e // we found it
 		} else {
-			if err != CacheMiss {
+			if err != CacheMissError {
 				log.Printf("Cache error but continue: %+v", err)
 			}
 			load = append(load, ref)

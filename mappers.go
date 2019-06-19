@@ -9,7 +9,7 @@ import (
 	"cloud.google.com/go/firestore"
 )
 
-// converts entities to firestore refs
+// DefaultToDBMapperFunc default mapper that maps entity fields and values to be firestore fields and values
 func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal reflect.Value) (string, reflect.Value) {
 	// do not save as it is the id of the document
 	switch inKey {
@@ -51,6 +51,8 @@ func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal reflect.Value) (s
 	}
 	return inKey, inVal
 }
+
+// DefaultFromDBMapperFunc default mapper that maps firestore fields and values to entity fields and values
 func (fsc *FSClient) DefaultFromDBMapperFunc(inKey string, inVal reflect.Value) (s string, value reflect.Value) {
 	return inKey, inVal
 }
@@ -94,9 +96,9 @@ func getTypeName(i interface{}) string {
 }
 
 func getStructType(i interface{}) reflect.Type {
-	if t := reflect.TypeOf(i); t.Kind() == reflect.Ptr {
+	t := reflect.TypeOf(i)
+	if t.Kind() == reflect.Ptr {
 		return t.Elem()
-	} else {
-		return t
 	}
+	return t
 }

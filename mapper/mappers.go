@@ -8,32 +8,32 @@ import (
 	"unsafe"
 )
 
-type MapperFunc func(inKey string, inVal reflect.Value) (string, reflect.Value)
+// MapFunc used to map a field name and value to another field name and value
+type MapFunc func(inKey string, inVal reflect.Value) (string, reflect.Value)
 
+// Mapper used for mapping structs to maps or other structs
 type Mapper struct {
-	MapperFunc MapperFunc
+	MapperFunc MapFunc
 }
 
-type Ref struct {
-	ObjectPtr  interface{}
-	Map        map[string]interface{}
-	IsResolved bool
-}
-
+// New creates a new mapper
 func New() *Mapper {
-	m := &Mapper{DefaultMapperFunk}
+	m := &Mapper{DefaultMapFunk}
 	return m
 }
 
-func NewWithFunc(mapperFunc MapperFunc) *Mapper {
+// NewWithFunc with an custom MapFunc
+func NewWithFunc(mapperFunc MapFunc) *Mapper {
 	m := &Mapper{mapperFunc}
 	return m
 }
 
-func DefaultMapperFunk(inKey string, inVal reflect.Value) (string, reflect.Value) {
+// DefaultMapFunk default mapper that returns the same field name and value
+func DefaultMapFunk(inKey string, inVal reflect.Value) (string, reflect.Value) {
 	return inKey, inVal
 }
 
+// MapSlices maps a slice of structs to a slice of maps
 func (mapper *Mapper) MapSlices(fromSlicePtr interface{}, toSlicePtr interface{}) error {
 	fromValuePtr := reflect.ValueOf(fromSlicePtr)
 	fromValue := reflect.Indirect(fromValuePtr)
@@ -55,7 +55,7 @@ func (mapper *Mapper) MapSlices(fromSlicePtr interface{}, toSlicePtr interface{}
 	return nil
 }
 
-// takes a map or a struct ptr (as fromPtr) and maps to a struct ptr
+// MapTo takes a map or a struct ptr (as fromPtr) and maps to a struct ptr
 func (mapper *Mapper) MapTo(fromPtr interface{}, toPtr interface{}) error {
 	c := make(map[interface{}]reflect.Value)
 	return mapper.cachedMapMapToStruct(fromPtr, toPtr, c)
@@ -64,18 +64,19 @@ func (mapper *Mapper) MapTo(fromPtr interface{}, toPtr interface{}) error {
 func (mapper *Mapper) cachedMapMapToStruct(fromPtr interface{}, toPtr interface{}, c map[interface{}]reflect.Value) error {
 	toStruct := reflect.Indirect(reflect.ValueOf(toPtr))
 	fromStruct := reflect.Indirect(reflect.ValueOf(fromPtr))
-	if m, ok := fromPtr.(map[string]interface{}); ok {
+	m, ok := fromPtr.(map[string]interface{})
+	if ok {
 		valMap := make(map[string]reflect.Value, len(m))
 		for k, v := range m {
 			valMap[strings.ToLower(k)] = reflect.ValueOf(v)
 		}
 		return mapper.mapMapToValues(valMap, toStruct, c)
-	} else {
-		fromMap := flatten(fromStruct)
-		return mapper.mapMapToValues(fromMap, toStruct, c)
 	}
+	fromMap := flatten(fromStruct)
+	return mapper.mapMapToValues(fromMap, toStruct, c)
 }
 
+// MapStructToMap maps a struct to a map
 func (mapper *Mapper) MapStructToMap(fromPtr interface{}) map[string]interface{} {
 	m := make(map[string]interface{})
 	fromStruct := reflect.Indirect(reflect.ValueOf(fromPtr))

@@ -13,19 +13,13 @@ import (
 
 var (
 	contextKeySCache = contextKey("sessionCache")
-	// Error returned on a cache miss
-	CacheMissError = errors.New("not found in cache")
-	logOnce        sync.Once
+	// ErrCacheMiss returned on a cache miss
+	ErrCacheMiss = errors.New("not found in cache")
+	logOnce      sync.Once
 )
 
 const cacheElement = "_cacheElement"
 const cacheSlice = "_cacheSlice"
-
-type contextKey string
-
-func (c contextKey) String() string {
-	return "context key " + string(c)
-}
 
 // CacheHandler should be used on the mux chain to support session cache.
 // So getting the same entity several times will only generate on DB hit
@@ -36,6 +30,7 @@ func CacheHandler(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+// Cache can be used to implement custom caching
 type Cache interface {
 	Get(c context.Context, key string, v interface{}) error
 	//GetMulti(c context.Context, vs map[string]interface{}) (map[string]interface{}, error)
@@ -62,7 +57,7 @@ func newCacheWrapper(client *firestore.Client, first Cache, second Cache) *cache
 func (c *cacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef, deep bool) (cacheRef, error) {
 	m := make(map[string]interface{})
 	err := c.first.Get(ctx, ref.Path, &m)
-	if err == CacheMissError && deep && c.second != nil {
+	if err == ErrCacheMiss && deep && c.second != nil {
 		err = c.second.Get(ctx, ref.Path, &m)
 	}
 	c.makeUnCachable(m)
@@ -195,14 +190,14 @@ func newDefaultCache() *defaultCache {
 func (c *defaultCache) Get(ctx context.Context, key string, v interface{}) error {
 	c.RLock()
 	defer c.RUnlock()
-	if e, ok := getSessionCache(ctx)[key]; !ok {
-		return CacheMissError
-	} else {
-		// set the value using reflection
-		val := reflect.Indirect(reflect.ValueOf(v))
-		val.Set(reflect.Indirect(reflect.ValueOf(e)))
-		return nil
+	e, ok := getSessionCache(ctx)[key]
+	if !ok {
+		return ErrCacheMiss
 	}
+	// set the value using reflection
+	val := reflect.Indirect(reflect.ValueOf(v))
+	val.Set(reflect.Indirect(reflect.ValueOf(e)))
+	return nil
 }
 
 /*

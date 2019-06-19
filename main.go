@@ -16,9 +16,9 @@ type FSClient struct {
 	IsEntity         func(i interface{}) bool
 }
 
-// NewRequest creates a new CRUD request to firestore
-func (fsc *FSClient) NewRequest() *request {
-	r := &request{}
+// NewRequest creates a new CRUD Request to firestore
+func (fsc *FSClient) NewRequest() *Request {
+	r := &Request{}
 	r.FSC = fsc
 	r.mapperFunc = func(i map[string]interface{}) {
 		return

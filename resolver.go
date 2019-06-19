@@ -152,22 +152,22 @@ func (r *resolver) resolveChildren(ctx context.Context, col *refCollector, nfRef
 	}
 
 	// now query the DB
-	if crefs, err := r.fsc.getCachedEntities(ctx, refs); err != nil {
+	crefs, err := r.fsc.getCachedEntities(ctx, refs)
+	if err != nil {
 		return err
-	} else {
-		r.Loaded(crefs)
-		childCol := r.NewRefCollector()
-		for _, cref := range crefs {
-			result := cref.GetResult()
-			if len(result) == 0 { // add not found refs
-				nfRefs[cref.Ref.Path] = cref.Ref
-				continue
-			}
-			r.resolveEntity(result, cref.Ref, childCol, nextPaths...)
-			col.resolve(result, cref.Ref)
-		}
-		return r.resolveChildren(ctx, childCol, nfRefs, nextPaths...)
 	}
+	r.Loaded(crefs)
+	childCol := r.NewRefCollector()
+	for _, cref := range crefs {
+		result := cref.GetResult()
+		if len(result) == 0 { // add not found refs
+			nfRefs[cref.Ref.Path] = cref.Ref
+			continue
+		}
+		r.resolveEntity(result, cref.Ref, childCol, nextPaths...)
+		col.resolve(result, cref.Ref)
+	}
+	return r.resolveChildren(ctx, childCol, nfRefs, nextPaths...)
 }
 
 func (r *resolver) resolveEntity(m entityMap, ref *firestore.DocumentRef, col *refCollector, paths ...string) {

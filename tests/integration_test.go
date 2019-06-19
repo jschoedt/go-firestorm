@@ -1,4 +1,4 @@
-package firestorm_tests
+package firestormtests
 
 import (
 	"cloud.google.com/go/firestore"

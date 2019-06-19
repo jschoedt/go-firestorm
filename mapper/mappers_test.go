@@ -195,9 +195,9 @@ func TestMapMap2NestedEntity(t *testing.T) {
 }
 
 func marshal(val interface{}) string {
-	if d, err := json.Marshal(val); err != nil {
+	d, err := json.Marshal(val)
+	if err != nil {
 		return ""
-	} else {
-		return string(d)
 	}
+	return string(d)
 }

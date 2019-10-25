@@ -4,7 +4,7 @@
 [![GoDoc](https://godoc.org/github.com/jschoedt/go-firestorm?status.svg)](https://godoc.org/github.com/jschoedt/go-firestorm)
 
 # go-firestorm
-Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relational_mapping)) for [Google Cloud Firestore](https://cloud.google.com/firestore/). 
+Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relational_mapping)) for [Google Cloud Firestore](https://cloud.google.com/firestore/).
 
 
 #### Goals
@@ -26,7 +26,7 @@ Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relatio
 - Custom mappers between fields and types
 - Caching
 - Supports Google App Engine - 2. Gen (go version >= 1.11)
-   
+
 
 ## Getting Started
 
@@ -37,7 +37,7 @@ Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relatio
    * [Transactions](#transactions)
    * [Configurable auto load of references](#configurable-auto-load)
    * [Help](#help)
-   
+
 
 #### Prerequisites
 
@@ -76,7 +76,7 @@ car.Make = "Toyota"
 car.Year, _ = time.Parse(time.RFC3339, "2001-01-01T00:00:00.000Z")
 
 // Create the entity
-fsc.NewRequest().CreateEntity(ctx, car)()
+fsc.NewRequest().CreateEntities(ctx, car)()
 
 if car.ID == "" {
     t.Errorf("car should have an auto generated ID")
@@ -84,7 +84,7 @@ if car.ID == "" {
 
 // Read the entity by ID
 otherCar := &Car{ID:car.ID}
-fsc.NewRequest().GetEntity(ctx, otherCar)()
+fsc.NewRequest().GetEntities(ctx, otherCar)()
 if otherCar.Make != "Toyota" {
     t.Errorf("car should have name: Toyota but was: %s", otherCar.Make)
 }
@@ -94,19 +94,19 @@ if otherCar.Year != car.Year {
 
 // Update the entity
 car.Make = "Jeep"
-fsc.NewRequest().UpdateEntity(ctx, car)()
+fsc.NewRequest().UpdateEntities(ctx, car)()
 
 otherCar := &Car{ID:car.ID}
-fsc.NewRequest().GetEntity(ctx, otherCar)()
+fsc.NewRequest().GetEntities(ctx, otherCar)()
 if otherCar.Make != "Jeep" {
     t.Errorf("car should have name: Jeep but was: %s", otherCar.Make)
 }
 
 // Delete the entity
-fsc.NewRequest().DeleteEntity(ctx, car)()
+fsc.NewRequest().DeleteEntities(ctx, car)()
 
 otherCar = &Car{ID:car.ID}
-if err := fsc.NewRequest().GetEntity(ctx, otherCar)(); err == nil {
+if err := fsc.NewRequest().GetEntities(ctx, otherCar)(); err == nil {
     t.Errorf("We expect a NotFoundError")
 }
 ```
@@ -120,7 +120,7 @@ car := &Car{}
 car.ID = "testID"
 car.Make = "Toyota"
 
-fsc.NewRequest().CreateEntity(ctx, car)()
+fsc.NewRequest().CreateEntities(ctx, car)()
 
 query := fsc.Client.Collection("Car").Where("make", "==", "Toyota")
 
@@ -138,12 +138,12 @@ if result[0].ID != car.ID || result[0].Make != car.Make {
 #### Concurrent requests
 All CRUD operations are asynchronous and return a future func that when called will block until the operation is done.
 
-**NOTE:** the state of the entities is undefined until the future func returns.   
+**NOTE:** the state of the entities is undefined until the future func returns.
 ```go
 car := &Car{Make:"Toyota"}
 
 // Create the entity which returns a future func
-future := fsc.NewRequest().CreateEntity(ctx, car)
+future := fsc.NewRequest().CreateEntities(ctx, car)
 
 // ID is not set
 if car.ID != "" {
@@ -171,24 +171,24 @@ car := &Car{Make: "Toyota"}
 fsc.DoInTransaction(ctx, func(transCtx context.Context) error {
 
     // Create the entity in the transaction using the transCtx
-    fsc.NewRequest().CreateEntity(transCtx, car)()
+    fsc.NewRequest().CreateEntities(transCtx, car)()
 
     // Using the transCtx we can load the entity as it is saved in the session context
     otherCar := &Car{ID:car.ID}
-    fsc.NewRequest().GetEntity(transCtx, otherCar)()
+    fsc.NewRequest().GetEntities(transCtx, otherCar)()
     if otherCar.Make != car.Make {
         t.Errorf("The car should have been saved in the transaction context")
     }
 
     // Loading using an other context (request) will fail as the car is not created until the func returns successfully
-    if err := fsc.NewRequest().GetEntity(ctx, &Car{ID:car.ID})(); err == nil {
+    if err := fsc.NewRequest().GetEntities(ctx, &Car{ID:car.ID})(); err == nil {
         t.Errorf("We expect a NotFoundError")
     }
 })
 
 // Now we can load the car as the transaction has been committed
 otherCar := &Car{ID:car.ID}
-fsc.NewRequest().GetEntity(ctx, otherCar)()
+fsc.NewRequest().GetEntities(ctx, otherCar)()
 if otherCar.Make != "Toyota" {
     t.Errorf("car should have name: Toyota but was: %s", otherCar.Make)
 }
@@ -197,12 +197,12 @@ if otherCar.Make != "Toyota" {
 [More examples](https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go)
 
 #### Configurable auto load of references
-Use the ```req.SetLoadPaths("fieldName")``` to auto load a particular field 
+Use the ```req.SetLoadPaths("fieldName")``` to auto load a particular field
 or ```req.SetLoadPaths(firestorm.AllEntities)``` to load all fields.
 
 Load an entity path by adding multiple paths eg.: path->to->field
 ```go
-fsc.NewRequest().SetLoadPaths("path", "path.to", "path.to.field").GetEntity(ctx, car)()
+fsc.NewRequest().SetLoadPaths("path", "path.to", "path.to.field").GetEntities(ctx, car)()
 ```
 [More examples](https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go)
 

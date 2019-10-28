@@ -12,3 +12,8 @@
 *.out
 
 auth
+/.idea/.gitignore
+/.idea/go-firestorm.iml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/vcs.xml

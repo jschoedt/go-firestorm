@@ -1,60 +1,67 @@
 package firestorm
 
 import (
+	"cloud.google.com/go/firestore"
 	"context"
 	"errors"
+	"github.com/jschoedt/go-firestorm/mapper"
 	"reflect"
 	"strings"
-
-	"cloud.google.com/go/firestore"
+	"time"
 )
 
 // DefaultToDBMapperFunc default mapper that maps entity fields and values to be firestore fields and values
-func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal reflect.Value) (string, reflect.Value) {
+func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MapppingType, outKey string, outVal interface{}) {
 	// do not save as it is the id of the document
 	switch inKey {
 	case "id":
-		return "", inVal
+		return mapper.Ignore, inKey, inVal
 	}
 
-	switch inVal.Kind() {
+	v := reflect.ValueOf(inVal)
+	switch v.Kind() {
+	case reflect.Struct:
+		if _, ok := inVal.(time.Time); ok {
+			return mapper.Custom, inKey, inVal
+		}
 	case reflect.Slice:
-		typ := inVal.Type().Elem()
+		typ := v.Type().Elem()
 		if typ.Kind() == reflect.Ptr {
 			typ = typ.Elem()
 		}
 		// check if the type is an entity
 		elemType := reflect.TypeOf((*firestore.DocumentRef)(nil))
-		elemSlice := reflect.MakeSlice(reflect.SliceOf(elemType), inVal.Len(), inVal.Len())
-		for i := 0; i < inVal.Len(); i++ {
-			fromEmlPtr := inVal.Index(i)
+		elemSlice := reflect.MakeSlice(reflect.SliceOf(elemType), v.Len(), v.Len())
+		for i := 0; i < v.Len(); i++ {
+			fromEmlPtr := v.Index(i)
 			fromEmlValue := reflect.Indirect(fromEmlPtr)
 			//log.Printf("val : %v", fromEmlValue)
+			// if not en entity just return it
 			if fromEmlValue.Kind() != reflect.Struct || !fsc.IsEntity(fromEmlValue) {
-				return inKey, inVal
+				return mapper.Default, inKey, inVal
 			}
 			hid := fromEmlValue.Addr().Interface()
 			toElmPtr := reflect.ValueOf(fsc.NewRequest().ToRef(hid))
 			elemSlice.Index(i).Set(toElmPtr)
 		}
-		return inKey, elemSlice
+		return mapper.Custom, inKey, elemSlice.Interface()
 	case reflect.Interface:
 		fallthrough
 	case reflect.Ptr:
-		val := reflect.Indirect(inVal)
+		val := reflect.Indirect(v)
 		if val.Kind() == reflect.Invalid {
-			return "", inVal // skip nil pointer
+			return mapper.Ignore, "", inVal // skip nil pointer
 		}
 		if fsc.IsEntity(val) {
-			return inKey, reflect.ValueOf(fsc.NewRequest().ToRef(val.Interface()))
+			return mapper.Custom, inKey, fsc.NewRequest().ToRef(val.Interface())
 		}
 	}
-	return inKey, inVal
+	return mapper.Default, inKey, inVal
 }
 
 // DefaultFromDBMapperFunc default mapper that maps firestore fields and values to entity fields and values
-func (fsc *FSClient) DefaultFromDBMapperFunc(inKey string, inVal reflect.Value) (s string, value reflect.Value) {
-	return inKey, inVal
+func (fsc *FSClient) DefaultFromDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MapppingType, outKey string, outVal interface{}) {
+	return mapper.Default, inKey, inVal
 }
 
 func (fsc *FSClient) toEntities(ctx context.Context, entities []entityMap, toSlicePtr interface{}) error {

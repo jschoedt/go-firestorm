@@ -137,7 +137,10 @@ func (fsc *FSClient) queryEntities(ctx context.Context, req *Request, p firestor
 
 func (fsc *FSClient) createEntity(ctx context.Context, req *Request, entity interface{}) FutureFunc {
 	asyncFunc := func() error {
-		m := fsc.MapToDB.MapStructToMap(entity)
+		m, err := fsc.MapToDB.MapStructToMap(entity)
+		if err != nil {
+			return err
+		}
 
 		ref := req.ToRef(entity)
 		// if we need a fixed ID use that
@@ -186,7 +189,10 @@ func (fsc *FSClient) createEntities(ctx context.Context, req *Request, sliceVal 
 
 func (fsc *FSClient) updateEntity(ctx context.Context, req *Request, entity interface{}) FutureFunc {
 	asyncFunc := func() error {
-		m := fsc.MapToDB.MapStructToMap(entity)
+		m, err := fsc.MapToDB.MapStructToMap(entity)
+		if err != nil {
+			return err
+		}
 
 		ref := req.ToRef(entity)
 		req.mapperFunc(m)

@@ -3,15 +3,17 @@ package firestormtests
 import (
 	"cloud.google.com/go/firestore"
 	"context"
+	"github.com/google/go-cmp/cmp"
 	"github.com/jschoedt/go-firestorm"
 	"testing"
 	"time"
 )
 
 type Person struct {
-	ID     string
-	Name   string
-	Spouse *Person
+	ID        string
+	Name      string
+	Spouse    *Person
+	Relations []*Relation // becomes nested as Relation is missing ID
 }
 
 type Car struct {
@@ -23,6 +25,11 @@ type Car struct {
 	Tags       []string
 	Numbers    []int
 	Year       time.Time
+}
+
+type Relation struct {
+	Name    string
+	Friends []*Person // becomes a firestore array of refs
 }
 
 func TestCRUD(t *testing.T) {
@@ -258,6 +265,45 @@ func TestTransactions(t *testing.T) {
 	fsc.NewRequest().GetEntities(ctx, otherCar)()
 	if otherCar.Make != "Toyota" {
 		t.Errorf("car should have name: Toyota but was: %s", otherCar.Make)
+	}
+}
+
+func TestNestedRefs(t *testing.T) {
+	john := &Person{Name: "John"}
+	friend1 := &Person{Name: "Friend1"}
+	friend2 := &Person{Name: "Friend2"}
+
+	// Creates both values and references
+	fsc.NewRequest().CreateEntities(ctx, []interface{}{john, friend1, friend2})()
+	defer cleanup(john, friend1, friend2)
+
+	// Add the nested relation
+	john.Relations = []*Relation{{Friends: []*Person{friend1, friend2}}}
+	fsc.NewRequest().UpdateEntities(ctx, john)()
+
+	// Reverting to the Firestore API we can test that the ref has been created
+	snapshot, _ := fsc.Client.Collection("Person").Doc(john.ID).Get(ctx)
+
+	if relations, ok := snapshot.Data()["relations"].([]interface{}); !ok {
+		t.Errorf("relations should have been slice of map: %v", relations)
+	} else {
+		if rel, ok := relations[0].(map[string]interface{}); !ok {
+			t.Errorf("rel should have been a map: %v", rel)
+		} else {
+			if refs, ok := rel["friends"].([]interface{}); !ok {
+				t.Errorf("friends ref should have been array of interface: %v", refs)
+			} else {
+				if ref, ok := refs[0].(*firestore.DocumentRef); !ok {
+					t.Errorf("first relation not a *Relation: %v", ref)
+				}
+			}
+		}
+	}
+
+	p := &Person{ID: john.ID}
+	fsc.NewRequest().SetLoadPaths("friends").GetEntities(ctx, p)()
+	if !cmp.Equal(john, p) {
+		t.Errorf("The structs were not the same %v - %v", john, p)
 	}
 }
 

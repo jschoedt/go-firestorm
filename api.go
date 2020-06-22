@@ -10,24 +10,32 @@ import (
 	"sync"
 )
 
+var transCacheKey = contextKey("transactionCache")
+
 // DoInTransaction wraps any updates that needs to run in a transaction.
 // Use the f Context for any calls that need to be part of the transaction.
 // Do reads before writes as required by firestore
 func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(ctx context.Context) error) error {
-	err := fsc.Client.RunTransaction(ctx, func(ctx context.Context, t *firestore.Transaction) error {
-		m := make(map[string]interface{})
-		tctx := context.WithValue(ctx, contextKeyTransaction, t)
-		tctx = context.WithValue(tctx, ContextKeySCache, m)
-		result := f(tctx)
-		// update parent cache by removing entities in used
-		for k := range m {
-			fsc.Cache.Delete(ctx, k, true)
-		}
-		return result
-	})
-	if err == nil {
-
+	// if nested transaction - reuse existing transaction and cache
+	if _, ok := getTransaction(ctx); ok {
+		return f(ctx)
 	}
+	err := fsc.Client.RunTransaction(ctx, func(ctx context.Context, t *firestore.Transaction) error {
+		// add a new cache to context
+		recCache := newRecordingCache()
+		tctx := context.WithValue(ctx, transactionCtxKey, t)
+		tctx = context.WithValue(tctx, SessionCacheKey, make(map[string]interface{}))
+		tctx = context.WithValue(tctx, transCacheKey, newCacheWrapper(fsc.Client, newDefaultCache(), recCache))
+		err := f(tctx)
+
+		// update global cache with transaction cache. Consider not letting the transaction fail if cache fails
+		if err == nil {
+			if err := fsc.getCache(ctx).SetMulti(ctx, recCache.updated); err == nil {
+				err = fsc.getCache(ctx).DeleteMulti(ctx, recCache.deleted)
+			}
+		}
+		return err
+	})
 	return err
 }
 
@@ -76,14 +84,16 @@ func (fsc *FSClient) getCachedEntities(ctx context.Context, refs []*firestore.Do
 	load := make([]*firestore.DocumentRef, 0, len(refs))
 
 	// check cache and collect refs not loaded yet
-	for i, ref := range refs {
-		if e, err := fsc.Cache.Get(ctx, ref, true); err == nil {
-			res[i] = e // we found it
-		} else {
-			if err != ErrCacheMiss {
-				log.Printf("Cache error but continue: %+v", err)
+	if getMulti, err := fsc.getCache(ctx).GetMulti(ctx, refs); err != nil {
+		log.Printf("Cache error but continue: %+v", err)
+		load = append(load, refs...)
+	} else {
+		for i, ref := range refs {
+			if e, ok := getMulti[ref]; ok {
+				res[i] = e // we found it
+			} else {
+				load = append(load, ref)
 			}
-			load = append(load, ref)
 		}
 	}
 
@@ -108,7 +118,7 @@ func (fsc *FSClient) getCachedEntities(ctx context.Context, refs []*firestore.Do
 			i++
 		}
 	}
-	if err = fsc.Cache.SetMulti(ctx, multi, true); err != nil {
+	if err = fsc.getCache(ctx).SetMulti(ctx, multi); err != nil {
 		log.Printf("Cache error but continue: %+v", err)
 	}
 	return res, nil
@@ -124,7 +134,7 @@ func (fsc *FSClient) queryEntities(ctx context.Context, req *Request, p firestor
 		for _, doc := range docs {
 			multi[doc.Ref.Path] = doc.Data()
 		}
-		if err = fsc.Cache.SetMulti(ctx, multi, true); err != nil {
+		if err = fsc.getCache(ctx).SetMulti(ctx, multi); err != nil {
 			log.Printf("Cache error but continue: %+v", err)
 		}
 		resolver := newResolver(fsc, req.loadPaths...)
@@ -154,7 +164,7 @@ func (fsc *FSClient) createEntity(ctx context.Context, req *Request, entity inte
 		if err := create(ctx, ref, m); err != nil {
 			return err
 		}
-		if err := fsc.Cache.Set(ctx, ref.Path, m, true); err != nil {
+		if err := fsc.getCache(ctx).Set(ctx, ref.Path, m); err != nil {
 			log.Printf("Cache error but continue: %+v", err)
 		}
 		return nil
@@ -201,7 +211,7 @@ func (fsc *FSClient) updateEntity(ctx context.Context, req *Request, entity inte
 		if err := set(ctx, ref, m); err != nil {
 			return err
 		}
-		if err := fsc.Cache.Set(ctx, ref.Path, m, true); err != nil {
+		if err := fsc.getCache(ctx).Set(ctx, ref.Path, m); err != nil {
 			log.Printf("Cache error but continue: %+v", err)
 		}
 		return nil
@@ -242,7 +252,7 @@ func (fsc *FSClient) deleteEntity(ctx context.Context, req *Request, entity inte
 		if err := del(ctx, ref); err != nil {
 			return err
 		}
-		if err := fsc.Cache.Delete(ctx, ref.Path, true); err != nil {
+		if err := fsc.getCache(ctx).Delete(ctx, ref.Path); err != nil {
 			log.Printf("Cache error but continue: %+v", err)
 		}
 		return nil

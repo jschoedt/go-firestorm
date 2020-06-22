@@ -24,7 +24,8 @@ Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relatio
 - Supports embedded/anonymous structs
 - Supports unexported fields
 - Custom mappers between fields and types
-- Caching
+- Caching (session + second level)
+- Nested transactions will reuse the first transaction (reads before writes as required by firestore)
 - Supports Google App Engine - 2. Gen (go version >= 1.11)
 
 
@@ -55,9 +56,13 @@ Parent is optional. The id field must be a string but can be called anything.
 client, _ := app.Firestore(ctx)
 fsc := firestorm.New(client, "ID", "")
 ```
-3. Optional. For optimal caching to work consider adding the CacheHandler
+3. Optional. For optimal caching to work consider adding the CacheHandler. Adds a simple session cache pr. request.
 ```go
 http.HandleFunc("/", firestorm.CacheHandler(otherHandler))
+```
+4. Optional. For second level caching eg. Memcache or Redis
+```go
+fsc.SetCache(cache.NewMemCache())
 ```
 #### Basic CRUD example
 **Note:** Recursive Create/Delete is not supported and must be called on every entity.

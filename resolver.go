@@ -11,6 +11,7 @@ import (
 const AllEntities = "ALL"
 
 var refType = reflect.TypeOf((*firestore.DocumentRef)(nil))
+var entityType = reflect.TypeOf((entityMap)(nil))
 
 type entityMap = map[string]interface{}
 type refSet = map[string]*firestore.DocumentRef
@@ -201,7 +202,9 @@ func (r *resolver) resolveEntity(m entityMap, ref *firestore.DocumentRef, col *r
 			valOf := reflect.ValueOf(v)
 			switch valOf.Kind() {
 			case reflect.Map:
-				r.resolveEntity(v.(entityMap), nil, col, paths...)
+				if valOf.Len() > 0 && valOf.Type() == entityType {
+					r.resolveEntity(v.(entityMap), nil, col, paths...)
+				}
 			case reflect.Slice:
 				if valOf.Len() > 0 {
 					first := valOf.Index(0)

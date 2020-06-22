@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ContextKeySCache = contextKey("sessionCache")
+	// SessionCacheKey is the key for the session map in the context
+	SessionCacheKey = contextKey("sessionCache")
 	// ErrCacheMiss returned on a cache miss
 	ErrCacheMiss = errors.New("not found in cache")
 	logOnce      sync.Once
@@ -25,7 +26,7 @@ const cacheSlice = "_cacheSlice"
 // So getting the same entity several times will only generate on DB hit
 func CacheHandler(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), ContextKeySCache, make(map[string]interface{}))
+		ctx := context.WithValue(r.Context(), SessionCacheKey, make(map[string]interface{}))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -33,7 +34,7 @@ func CacheHandler(next http.HandlerFunc) http.HandlerFunc {
 // Cache can be used to implement custom caching
 type Cache interface {
 	Get(c context.Context, key string, v interface{}) error
-	//GetMulti(c context.Context, vs map[string]interface{}) (map[string]interface{}, error)
+	GetMulti(c context.Context, vs map[string]interface{}) (map[string]interface{}, error)
 	Set(c context.Context, key string, item interface{}) error
 	SetMulti(c context.Context, items map[string]interface{}) error
 	Delete(c context.Context, key string) error
@@ -54,45 +55,73 @@ func newCacheWrapper(client *firestore.Client, first Cache, second Cache) *cache
 	return cw
 }
 
+func (c *cacheWrapper) convertToCacheRef(m map[string]interface{}, ref *firestore.DocumentRef) cacheRef {
+	c.makeUnCachable(m)
+	return newCacheRef(m, ref)
+}
+
 func (c *cacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef, deep bool) (cacheRef, error) {
 	var m map[string]interface{}
 	err := c.first.Get(ctx, ref.Path, &m)
-	if err == ErrCacheMiss && deep && c.second != nil {
+	if err == ErrCacheMiss && c.second != nil {
 		err = c.second.Get(ctx, ref.Path, &m)
 	}
-	c.makeUnCachable(m)
+
 	//log.Printf("Get: ID: %v - %+v\n", ref.Path, m)
-	return newCacheRef(m, ref), err
+	return c.convertToCacheRef(m, ref), err
 }
 
-/*
-func (c *CacheWrapper) GetMulti(ctx context.Context, keys []string, deep bool) (map[string]interface{}, error) {
-	if e, err := c.first.GetMulti(ctx, keys); err != nil {
+func (c *cacheWrapper) GetMulti(ctx context.Context, refs []*firestore.DocumentRef) (map[*firestore.DocumentRef]cacheRef, error) {
+	keyToRef := make(map[string]*firestore.DocumentRef, len(refs))
+	tmpResult := make(map[string]interface{}, len(refs))
+	result := make(map[*firestore.DocumentRef]cacheRef, len(tmpResult))
+	for _, ref := range refs {
+		keyToRef[ref.Path] = ref
+		tmpResult[ref.Path] = make(map[string]interface{})
+	}
+
+	if first, err := c.first.GetMulti(ctx, tmpResult); err != nil {
 		return nil, err
-	} else if e != nil {
-		return e, nil
+	} else if c.second == nil {
+		for key, val := range first {
+			ref := keyToRef[key]
+			result[ref] = c.convertToCacheRef(val.(map[string]interface{}), ref) // update result with first level
+		}
+	} else { // deep && c.second != nil
+		for key := range tmpResult {
+			if val, ok := first[key]; ok {
+				ref := keyToRef[key]
+				result[ref] = c.convertToCacheRef(val.(map[string]interface{}), ref) // update result with first level
+				delete(tmpResult, key)                                               // remove it since we found it
+			}
+		}
+		// get the diff list
+		if multi, err := c.second.GetMulti(ctx, tmpResult); err != nil {
+			return nil, err
+		} else {
+			for key, elm := range multi {
+				ref := keyToRef[key]
+				result[ref] = c.convertToCacheRef(elm.(map[string]interface{}), ref) // update result with first level
+			}
+		}
 	}
-	if deep && c.second != nil {
-		return c.second.GetMulti(ctx, keys)
-	}
-	return nil, nil
+
+	return result, nil
 }
 
-*/
-
-func (c *cacheWrapper) Set(ctx context.Context, key string, item map[string]interface{}, deep bool) error {
+func (c *cacheWrapper) Set(ctx context.Context, key string, item map[string]interface{}) error {
 	//log.Printf("Set: ID: %v - %+v\n", key, item)
 	c.makeCachable(item)
 	if err := c.first.Set(ctx, key, item); err != nil {
 		return err
 	}
-	if deep && c.second != nil {
+	if c.second != nil {
 		return c.second.Set(ctx, key, item)
 	}
 	return nil
 }
 
-func (c *cacheWrapper) SetMulti(ctx context.Context, items map[string]map[string]interface{}, deep bool) error {
+func (c *cacheWrapper) SetMulti(ctx context.Context, items map[string]map[string]interface{}) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -105,30 +134,30 @@ func (c *cacheWrapper) SetMulti(ctx context.Context, items map[string]map[string
 	if err := c.first.SetMulti(ctx, cache); err != nil {
 		return err
 	}
-	if deep && c.second != nil {
+	if c.second != nil {
 		return c.second.SetMulti(ctx, cache)
 	}
 	return nil
 }
 
-func (c *cacheWrapper) Delete(ctx context.Context, key string, deep bool) error {
+func (c *cacheWrapper) Delete(ctx context.Context, key string) error {
 	if err := c.first.Delete(ctx, key); err != nil {
 		return err
 	}
-	if deep && c.second != nil {
+	if c.second != nil {
 		return c.second.Delete(ctx, key)
 	}
 	return nil
 }
 
-func (c *cacheWrapper) DeleteMulti(ctx context.Context, keys []string, deep bool) error {
+func (c *cacheWrapper) DeleteMulti(ctx context.Context, keys []string) error {
 	if len(keys) == 0 {
 		return nil
 	}
 	if err := c.first.DeleteMulti(ctx, keys); err != nil {
 		return err
 	}
-	if deep && c.second != nil {
+	if c.second != nil {
 		return c.second.DeleteMulti(ctx, keys)
 	}
 	return nil
@@ -200,19 +229,18 @@ func (c *defaultCache) Get(ctx context.Context, key string, v interface{}) error
 	return nil
 }
 
-/*
-func (c *defaultCache) GetMulti(ctx context.Context, keys []string) (map[string]interface{}, error) {
-	result := make(map[string]interface{}, len(keys))
+func (c *defaultCache) GetMulti(ctx context.Context, vs map[string]interface{}) (map[string]interface{}, error) {
+	result := make(map[string]interface{}, len(vs))
 	c.RLock()
 	defer c.RUnlock()
-	for _, k := range keys {
+	for k := range vs {
 		if e, ok := getSessionCache(ctx)[k]; ok {
 			result[k] = e
 		}
 	}
 	return result, nil
 }
-*/
+
 func (c *defaultCache) Set(ctx context.Context, key string, item interface{}) error {
 	c.Lock()
 	defer c.Unlock()
@@ -246,11 +274,52 @@ func (c *defaultCache) DeleteMulti(ctx context.Context, keys []string) error {
 }
 
 func getSessionCache(ctx context.Context) map[string]interface{} {
-	if c, ok := ctx.Value(ContextKeySCache).(map[string]interface{}); ok {
+	if c, ok := ctx.Value(SessionCacheKey).(map[string]interface{}); ok {
 		return c
 	}
 	logOnce.Do(func() {
 		log.Println("Warning. Consider adding the CacheHandler middleware for the session cache to work")
 	})
 	return make(map[string]interface{})
+}
+
+type recordingCache struct {
+	updated map[string]map[string]interface{}
+	deleted []string
+}
+
+func newRecordingCache() *recordingCache {
+	return &recordingCache{
+		updated: make(map[string]map[string]interface{}),
+	}
+}
+
+func (r recordingCache) Get(c context.Context, key string, v interface{}) error {
+	return nil
+}
+
+func (r recordingCache) GetMulti(c context.Context, vs map[string]interface{}) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (r recordingCache) Set(c context.Context, key string, item interface{}) error {
+	r.updated[key] = item.(map[string]interface{})
+	return nil
+}
+
+func (r recordingCache) SetMulti(c context.Context, items map[string]interface{}) error {
+	for key, val := range items {
+		r.updated[key] = val.(map[string]interface{})
+	}
+	return nil
+}
+
+func (r recordingCache) Delete(c context.Context, key string) error {
+	r.deleted = append(r.deleted, key)
+	return nil
+}
+
+func (r recordingCache) DeleteMulti(c context.Context, keys []string) error {
+	r.deleted = append(r.deleted, keys...)
+	return nil
 }

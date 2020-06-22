@@ -26,7 +26,7 @@ func init() {
 func testRunner(t *testing.T, f func(ctx context.Context, t *testing.T)) {
 	ctx := context.Background()
 	f(ctx, t)
-	ctx = context.WithValue(ctx, firestorm.ContextKeySCache, make(map[string]interface{}))
+	ctx = context.WithValue(ctx, firestorm.SessionCacheKey, make(map[string]interface{}))
 	f(ctx, t)
 }
 

@@ -205,27 +205,30 @@ func (r *resolver) resolveEntity(m entityMap, ref *firestore.DocumentRef, col *r
 			case reflect.Slice:
 				if valOf.Len() > 0 {
 					first := valOf.Index(0)
-					//fmt.Printf("toMap: %v  \n", first.Kind())
 
-					// from firestore the type is interface
+					// from firestore the type of slice is interface
 					if first.Kind() == reflect.Interface {
-						if first.Elem().Kind() == reflect.Map {
-							for i := 0; i < valOf.Len(); i++ {
-								r.resolveEntity(valOf.Index(i).Interface().(entityMap), nil, col, paths...)
-							}
-						} else if first.Elem().Type() == refType {
-							if !r.contains(k, paths...) {
-								delete(m, k)
-								continue
-							}
-							refs := make([]*firestore.DocumentRef, valOf.Len())
-							for i := 0; i < valOf.Len(); i++ {
-								fromEmlPtr := valOf.Index(i)
-								refs[i] = fromEmlPtr.Interface().(*firestore.DocumentRef)
-							}
-							col.AppendSlice(m, k, refs)
-						}
+						first = first.Elem()
 					}
+					//fmt.Printf("kind: %v type: %v  \n", first.Kind(), first.Type())
+
+					if first.Kind() == reflect.Map {
+						for i := 0; i < valOf.Len(); i++ {
+							r.resolveEntity(valOf.Index(i).Interface().(entityMap), nil, col, paths...)
+						}
+					} else if first.Type() == refType {
+						if !r.contains(k, paths...) {
+							delete(m, k)
+							continue
+						}
+						refs := make([]*firestore.DocumentRef, valOf.Len())
+						for i := 0; i < valOf.Len(); i++ {
+							fromEmlPtr := valOf.Index(i)
+							refs[i] = fromEmlPtr.Interface().(*firestore.DocumentRef)
+						}
+						col.AppendSlice(m, k, refs)
+					}
+
 				}
 			}
 		}

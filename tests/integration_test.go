@@ -33,6 +33,10 @@ type Relation struct {
 }
 
 func TestCRUD(t *testing.T) {
+	testRunner(t, testCRUD_)
+}
+
+func testCRUD_(ctx context.Context, t *testing.T) {
 	car := &Car{}
 	car.Make = "Toyota"
 	car.Year, _ = time.Parse(time.RFC3339, "2001-01-01T00:00:00.000Z")
@@ -72,8 +76,10 @@ func TestCRUD(t *testing.T) {
 		t.Errorf("We expect a notFoundError")
 	}
 }
-
 func TestSearch(t *testing.T) {
+	testRunner(t, testSearch_)
+}
+func testSearch_(ctx context.Context, t *testing.T) {
 	car := &Car{}
 	car.ID = "testID"
 	car.Make = "Toyota"
@@ -103,6 +109,9 @@ func TestSearch(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
+	testRunner(t, testConcurrency_)
+}
+func testConcurrency_(ctx context.Context, t *testing.T) {
 	if testing.Short() {
 		return
 	}
@@ -127,6 +136,9 @@ func TestConcurrency(t *testing.T) {
 }
 
 func TestRelations(t *testing.T) {
+	testRunner(t, testRelations_)
+}
+func testRelations_(ctx context.Context, t *testing.T) {
 	john := &Person{ID: "JohnsID", Name: "John"} // predefined ID
 	mary := &Person{ID: "MarysID", Name: "Mary"}
 	john.Spouse = mary
@@ -148,6 +160,9 @@ func TestRelations(t *testing.T) {
 }
 
 func TestAutoLoad(t *testing.T) {
+	testRunner(t, testAutoLoad_)
+}
+func testAutoLoad_(ctx context.Context, t *testing.T) {
 	john := Person{ID: "JohnsID", Name: "John"} // predefined ID
 	mary := Person{ID: "MarysID", Name: "Mary"}
 	john.Spouse = &mary
@@ -203,6 +218,9 @@ func TestAutoLoad(t *testing.T) {
 }
 
 func TestCycles(t *testing.T) {
+	testRunner(t, testCycles_)
+}
+func testCycles_(ctx context.Context, t *testing.T) {
 	john := &Person{ID: "JohnsID", Name: "John"} // predefined ID
 	mary := &Person{ID: "MarysID", Name: "Mary"}
 	john.Spouse = mary
@@ -236,6 +254,9 @@ func TestCycles(t *testing.T) {
 }
 
 func TestTransactions(t *testing.T) {
+	testRunner(t, testTransactions_)
+}
+func testTransactions_(ctx context.Context, t *testing.T) {
 	car := &Car{Make: "Toyota"}
 
 	fsc.DoInTransaction(ctx, func(transCtx context.Context) error {
@@ -269,6 +290,9 @@ func TestTransactions(t *testing.T) {
 }
 
 func TestNestedRefs(t *testing.T) {
+	testRunner(t, testNestedRefs_)
+}
+func testNestedRefs_(ctx context.Context, t *testing.T) {
 	john := &Person{Name: "John"}
 	friend1 := &Person{Name: "Friend1"}
 	friend2 := &Person{Name: "Friend2"}
@@ -317,6 +341,9 @@ type SubMoao struct {
 }
 
 func TestAnonymousStructs(t *testing.T) {
+	testRunner(t, testAnonymousStructs_)
+}
+func testAnonymousStructs_(ctx context.Context, t *testing.T) {
 	sub := &SubMoao{}
 	sub.unexportedName = "moao"
 	sub.LocalName = "sub"
@@ -339,8 +366,4 @@ func TestAnonymousStructs(t *testing.T) {
 	if otherSub.LocalName != sub.LocalName {
 		t.Errorf("name should match: %s", otherSub.LocalName)
 	}
-}
-
-func cleanup(entities ...interface{}) {
-	fsc.NewRequest().DeleteEntities(ctx, entities)()
 }

@@ -15,12 +15,14 @@ import (
 // Do reads before writes as required by firestore
 func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(ctx context.Context) error) error {
 	err := fsc.Client.RunTransaction(ctx, func(ctx context.Context, t *firestore.Transaction) error {
-		// TODO: add a new cache to context
 		m := make(map[string]interface{})
 		tctx := context.WithValue(ctx, contextKeyTransaction, t)
-		tctx = context.WithValue(tctx, contextKeySCache, m)
+		tctx = context.WithValue(tctx, ContextKeySCache, m)
 		result := f(tctx)
-		// update parent cache
+		// update parent cache by removing entities in used
+		for k := range m {
+			fsc.Cache.Delete(ctx, k, true)
+		}
 		return result
 	})
 	if err == nil {

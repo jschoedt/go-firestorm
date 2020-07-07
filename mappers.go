@@ -1,7 +1,6 @@
 package firestorm
 
 import (
-	"cloud.google.com/go/firestore"
 	"context"
 	"errors"
 	"github.com/jschoedt/go-firestorm/mapper"
@@ -30,21 +29,23 @@ func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt 
 			typ = typ.Elem()
 		}
 		// check if the type is an entity
-		elemType := reflect.TypeOf((*firestore.DocumentRef)(nil))
-		elemSlice := reflect.MakeSlice(reflect.SliceOf(elemType), v.Len(), v.Len())
-		for i := 0; i < v.Len(); i++ {
-			fromEmlPtr := v.Index(i)
-			fromEmlValue := reflect.Indirect(fromEmlPtr)
-			//log.Printf("val : %v", fromEmlValue)
-			// if not en entity just return it
-			if fromEmlValue.Kind() != reflect.Struct || !fsc.IsEntity(fromEmlValue) {
-				return mapper.Default, inKey, inVal
+		if v.Len() > 0 {
+			first := v.Index(0)
+			if fsc.IsEntity(first) {
+				elemSlice := reflect.MakeSlice(reflect.SliceOf(refType), v.Len(), v.Len())
+				for i := 0; i < v.Len(); i++ {
+					fromEmlPtr := v.Index(i)
+					fromEmlValue := reflect.Indirect(fromEmlPtr)
+					//log.Printf("val : %v", fromEmlValue)
+					hid := fromEmlValue.Addr().Interface()
+					toElmPtr := reflect.ValueOf(fsc.NewRequest().ToRef(hid))
+					elemSlice.Index(i).Set(toElmPtr)
+				}
+				return mapper.Custom, inKey, elemSlice.Interface()
 			}
-			hid := fromEmlValue.Addr().Interface()
-			toElmPtr := reflect.ValueOf(fsc.NewRequest().ToRef(hid))
-			elemSlice.Index(i).Set(toElmPtr)
 		}
-		return mapper.Custom, inKey, elemSlice.Interface()
+		return mapper.Default, inKey, inVal
+
 	case reflect.Interface:
 		fallthrough
 	case reflect.Ptr:

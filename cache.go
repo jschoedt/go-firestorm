@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	contextKeySCache = contextKey("sessionCache")
+	ContextKeySCache = contextKey("sessionCache")
 	// ErrCacheMiss returned on a cache miss
 	ErrCacheMiss = errors.New("not found in cache")
 	logOnce      sync.Once
@@ -25,7 +25,7 @@ const cacheSlice = "_cacheSlice"
 // So getting the same entity several times will only generate on DB hit
 func CacheHandler(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), contextKeySCache, make(map[string]interface{}))
+		ctx := context.WithValue(r.Context(), ContextKeySCache, make(map[string]interface{}))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -55,7 +55,7 @@ func newCacheWrapper(client *firestore.Client, first Cache, second Cache) *cache
 }
 
 func (c *cacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef, deep bool) (cacheRef, error) {
-	m := make(map[string]interface{})
+	var m map[string]interface{}
 	err := c.first.Get(ctx, ref.Path, &m)
 	if err == ErrCacheMiss && deep && c.second != nil {
 		err = c.second.Get(ctx, ref.Path, &m)
@@ -147,7 +147,7 @@ func (c *cacheWrapper) makeCachable(m map[string]interface{}) {
 			case reflect.Slice:
 				if valOf.Len() > 0 {
 					first := valOf.Index(0)
-					if first.Kind() == reflect.Interface && first.Elem().Type() == reflect.TypeOf((*firestore.DocumentRef)(nil)) {
+					if first.Kind() == reflect.Interface && first.Elem().Type() == refType {
 						refs := make([]string, valOf.Len())
 						for i := 0; i < valOf.Len(); i++ {
 							fromEmlPtr := valOf.Index(i)
@@ -246,7 +246,7 @@ func (c *defaultCache) DeleteMulti(ctx context.Context, keys []string) error {
 }
 
 func getSessionCache(ctx context.Context) map[string]interface{} {
-	if c, ok := ctx.Value(contextKeySCache).(map[string]interface{}); ok {
+	if c, ok := ctx.Value(ContextKeySCache).(map[string]interface{}); ok {
 		return c
 	}
 	logOnce.Do(func() {

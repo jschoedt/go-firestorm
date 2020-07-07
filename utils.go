@@ -14,5 +14,10 @@ func (ref cacheRef) GetResult() map[string]interface{} {
 }
 
 func newCacheRef(result map[string]interface{}, ref *firestore.DocumentRef) cacheRef {
-	return cacheRef{result: result, Ref: ref}
+	// make a copy so modifications to the result map does not modify the original map
+	res := make(map[string]interface{}, len(result))
+	for k, e := range result {
+		res[k] = e
+	}
+	return cacheRef{result: res, Ref: ref}
 }

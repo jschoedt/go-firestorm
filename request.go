@@ -71,31 +71,33 @@ func getIDValue(id string, entity interface{}) (reflect.Value, error) {
 		v = cv
 	}
 	v = reflect.Indirect(v)
-	for i := 0; i < v.NumField(); i++ {
-		f := v.Field(i)
-		sf := v.Type().Field(i)
+	if v.Kind() == reflect.Struct {
+		for i := 0; i < v.NumField(); i++ {
+			f := v.Field(i)
+			sf := v.Type().Field(i)
 
-		switch f.Kind() {
-		case reflect.Struct:
-			if sf.Anonymous {
-				if sv, err := getIDValue(id, f); err == nil {
-					return sv, nil
+			switch f.Kind() {
+			case reflect.Struct:
+				if sf.Anonymous {
+					if sv, err := getIDValue(id, f); err == nil {
+						return sv, nil
+					}
 				}
 			}
-		}
 
-		// first check if id is statically set
-		if strings.ToLower(sf.Name) == id {
-			return f, nil
-		}
-		// otherwise use the tag
-		/* not supported yet
-		if tag, ok := sf.Tag.Lookup("firestorm"); ok {
-			if tag == "id" {
+			// first check if id is statically set
+			if strings.ToLower(sf.Name) == id {
 				return f, nil
 			}
+			// otherwise use the tag
+			/* not supported yet
+			if tag, ok := sf.Tag.Lookup("firestorm"); ok {
+				if tag == "id" {
+					return f, nil
+				}
+			}
+			*/
 		}
-		*/
 	}
 	return v, fmt.Errorf("entity has no id field defined: %v", entity)
 }

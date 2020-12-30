@@ -284,17 +284,14 @@ func getSessionCache(ctx context.Context) map[string]interface{} {
 }
 
 type recordingCache struct {
-	updated map[string]map[string]interface{}
-	deleted []string
+	updated []string
 }
 
 func newRecordingCache() *recordingCache {
-	return &recordingCache{
-		updated: make(map[string]map[string]interface{}),
-	}
+	return &recordingCache{}
 }
 
-func (r recordingCache) Get(c context.Context, key string, v interface{}) error {
+func (r *recordingCache) Get(c context.Context, key string, v interface{}) error {
 	return nil
 }
 
@@ -302,24 +299,24 @@ func (r recordingCache) GetMulti(c context.Context, vs map[string]interface{}) (
 	return nil, nil
 }
 
-func (r recordingCache) Set(c context.Context, key string, item interface{}) error {
-	r.updated[key] = item.(map[string]interface{})
+func (r *recordingCache) Set(c context.Context, key string, item interface{}) error {
+	r.updated = append(r.updated, key)
 	return nil
 }
 
-func (r recordingCache) SetMulti(c context.Context, items map[string]interface{}) error {
-	for key, val := range items {
-		r.updated[key] = val.(map[string]interface{})
+func (r *recordingCache) SetMulti(c context.Context, items map[string]interface{}) error {
+	for key := range items {
+		r.updated = append(r.updated, key)
 	}
 	return nil
 }
 
-func (r recordingCache) Delete(c context.Context, key string) error {
-	r.deleted = append(r.deleted, key)
+func (r *recordingCache) Delete(c context.Context, key string) error {
+	r.updated = append(r.updated, key)
 	return nil
 }
 
-func (r recordingCache) DeleteMulti(c context.Context, keys []string) error {
-	r.deleted = append(r.deleted, keys...)
+func (r *recordingCache) DeleteMulti(c context.Context, keys []string) error {
+	r.updated = append(r.updated, keys...)
 	return nil
 }

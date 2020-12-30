@@ -13,9 +13,9 @@ import (
 var transCacheKey = contextKey("transactionCache")
 
 // DoInTransaction wraps any updates that needs to run in a transaction.
-// Use the f Context for any calls that need to be part of the transaction.
+// Use the transaction context tctx  for any calls that need to be part of the transaction.
 // Do reads before writes as required by firestore
-func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(ctx context.Context) error) error {
+func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(tctx context.Context) error) error {
 	// if nested transaction - reuse existing transaction and cache
 	if _, ok := getTransaction(ctx); ok {
 		return f(ctx)
@@ -26,15 +26,18 @@ func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(ctx context.Con
 		tctx := context.WithValue(ctx, transactionCtxKey, t)
 		tctx = context.WithValue(tctx, SessionCacheKey, make(map[string]interface{}))
 		tctx = context.WithValue(tctx, transCacheKey, newCacheWrapper(fsc.Client, newDefaultCache(), recCache))
-		err := f(tctx)
 
-		// update global cache with transaction cache. Consider not letting the transaction fail if cache fails
-		if err == nil {
-			if err := fsc.getCache(ctx).SetMulti(ctx, recCache.updated); err == nil {
-				err = fsc.getCache(ctx).DeleteMulti(ctx, recCache.deleted)
-			}
+		// do the updates
+		if err := f(tctx); err != nil {
+			return err
 		}
-		return err
+
+		// update cache with transaction cache. For now we just delete all modified keys
+		if err := fsc.getCache(ctx).DeleteMulti(ctx, recCache.updated); err == nil {
+			log.Printf("Could not delete keys from cache: %#v", err)
+		}
+
+		return nil
 	})
 	return err
 }

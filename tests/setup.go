@@ -24,12 +24,22 @@ func init() {
 }
 
 func testRunner(t *testing.T, f func(ctx context.Context, t *testing.T)) {
-	ctx := context.Background()
-	f(ctx, t)
-	ctx = context.WithValue(ctx, firestorm.SessionCacheKey, make(map[string]interface{}))
-	f(ctx, t)
+	f(context.Background(), t)
+	f(createSessionCacheContext(), t)
 }
 
 func cleanup(entities ...interface{}) {
 	fsc.NewRequest().DeleteEntities(context.Background(), entities)()
+}
+
+func createSessionCacheContext() context.Context {
+	ctx := context.Background()
+	return context.WithValue(ctx, firestorm.SessionCacheKey, make(map[string]interface{}))
+}
+
+func getSessionCache(ctx context.Context) map[string]interface{} {
+	if c, ok := ctx.Value(firestorm.SessionCacheKey).(map[string]interface{}); ok {
+		return c
+	}
+	return nil
 }

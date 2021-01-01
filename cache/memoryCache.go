@@ -22,6 +22,7 @@ func (m *MemoryCache) Get(c context.Context, key string, v interface{}) error {
 	if elm, ok := m.c.Get(key); ok {
 		val := reflect.Indirect(reflect.ValueOf(v))
 		val.Set(reflect.Indirect(reflect.ValueOf(elm)))
+		return nil
 	}
 	return firestorm.ErrCacheMiss
 }

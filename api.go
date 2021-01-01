@@ -33,7 +33,10 @@ func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(tctx context.Co
 		}
 
 		// update cache with transaction cache. For now we just delete all modified keys
-		if err := fsc.getCache(ctx).DeleteMulti(ctx, recCache.updated); err == nil {
+		if err := fsc.getCache(ctx).SetMulti(ctx, recCache.getSetRec()); err != nil {
+			log.Printf("Could not set values in cache: %#v", err)
+		}
+		if err := fsc.getCache(ctx).DeleteMulti(ctx, recCache.getDeleteRec()); err != nil {
 			log.Printf("Could not delete keys from cache: %#v", err)
 		}
 

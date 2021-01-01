@@ -60,7 +60,7 @@ func (c *cacheWrapper) convertToCacheRef(m map[string]interface{}, ref *firestor
 	return newCacheRef(m, ref)
 }
 
-func (c *cacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef, deep bool) (cacheRef, error) {
+func (c *cacheWrapper) Get(ctx context.Context, ref *firestore.DocumentRef) (cacheRef, error) {
 	var m map[string]interface{}
 	err := c.first.Get(ctx, ref.Path, &m)
 	if err == ErrCacheMiss && c.second != nil {
@@ -91,6 +91,9 @@ func (c *cacheWrapper) GetMulti(ctx context.Context, refs []*firestore.DocumentR
 		for key := range tmpResult {
 			if val, ok := first[key]; ok {
 				ref := keyToRef[key]
+				if val == nil {
+					val = map[string]interface{}(nil) // treat nil as nil map
+				}
 				result[ref] = c.convertToCacheRef(val.(map[string]interface{}), ref) // update result with first level
 				delete(tmpResult, key)                                               // remove it since we found it
 			}
@@ -258,17 +261,12 @@ func (c *defaultCache) SetMulti(ctx context.Context, items map[string]interface{
 }
 
 func (c *defaultCache) Delete(ctx context.Context, key string) error {
-	c.Lock()
-	defer c.Unlock()
-	delete(getSessionCache(ctx), key)
-	return nil
+	return c.Set(ctx, key, nil)
 }
 
 func (c *defaultCache) DeleteMulti(ctx context.Context, keys []string) error {
-	c.Lock()
-	defer c.Unlock()
-	for _, k := range keys {
-		delete(getSessionCache(ctx), k)
+	for _, key := range keys {
+		c.Delete(ctx, key)
 	}
 	return nil
 }
@@ -283,40 +281,81 @@ func getSessionCache(ctx context.Context) map[string]interface{} {
 	return make(map[string]interface{})
 }
 
+type recType int
+
+const GET recType = 1
+const SET recType = 2
+const DELETE recType = 3
+
+type recording struct {
+	recType recType
+	val     interface{}
+}
 type recordingCache struct {
-	updated []string
+	// we do not need a lock on this as transactions are run synchronously
+	touched map[string]recording
 }
 
 func newRecordingCache() *recordingCache {
-	return &recordingCache{}
+	return &recordingCache{
+		touched: make(map[string]recording),
+	}
 }
 
 func (r *recordingCache) Get(c context.Context, key string, v interface{}) error {
+	r.touched[key] = recording{recType: GET, val: v}
 	return nil
 }
 
 func (r recordingCache) GetMulti(c context.Context, vs map[string]interface{}) (map[string]interface{}, error) {
+	for key, v := range vs {
+		r.touched[key] = recording{recType: GET, val: v}
+	}
 	return nil, nil
 }
 
 func (r *recordingCache) Set(c context.Context, key string, item interface{}) error {
-	r.updated = append(r.updated, key)
+	r.touched[key] = recording{recType: SET, val: item}
 	return nil
 }
 
 func (r *recordingCache) SetMulti(c context.Context, items map[string]interface{}) error {
-	for key := range items {
-		r.updated = append(r.updated, key)
+	for key, v := range items {
+		r.touched[key] = recording{recType: SET, val: v}
 	}
 	return nil
 }
 
 func (r *recordingCache) Delete(c context.Context, key string) error {
-	r.updated = append(r.updated, key)
+	r.touched[key] = recording{recType: DELETE}
 	return nil
 }
 
 func (r *recordingCache) DeleteMulti(c context.Context, keys []string) error {
-	r.updated = append(r.updated, keys...)
+	for _, key := range keys {
+		r.touched[key] = recording{recType: DELETE}
+	}
 	return nil
+}
+
+func (r *recordingCache) getSetRec() map[string]map[string]interface{} {
+	result := make(map[string]map[string]interface{})
+	for key, elm := range r.touched {
+		if elm.recType == GET || elm.recType == SET {
+			if val, ok := elm.val.(map[string]interface{}); ok {
+				result[key] = val
+			}
+		}
+	}
+	return result
+}
+
+func (r *recordingCache) getDeleteRec() []string {
+	var result []string
+	for key, elm := range r.touched {
+		if elm.recType == DELETE {
+			result = append(result, key)
+		}
+	}
+	return result
 }

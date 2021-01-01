@@ -33,7 +33,9 @@ func TestCacheCRUD(t *testing.T) {
 
 	// Delete the entity
 	fsc.NewRequest().DeleteEntities(ctx, car)()
-	assertNotInCache(ctx, memoryCache, car, t)
+	if m := assertInCache(ctx, memoryCache, car, t); len(m) > 0 {
+		t.Errorf("Value should be: %v - but was: %v", "nil", m)
+	}
 }
 
 func TestCacheTransaction(t *testing.T) {
@@ -56,7 +58,18 @@ func TestCacheTransaction(t *testing.T) {
 	assertNotInCache(ctx, memoryCache, car, t)
 
 	fsc.NewRequest().GetEntities(ctx, car)()
-	assertInCache(ctx, memoryCache, car, t)
+	if m := assertInCache(ctx, memoryCache, car, t); m != nil {
+		t.Errorf("entity should be nil : %v", m)
+	}
+
+	fsc.DoInTransaction(ctx, func(tctx context.Context) error {
+		// Create the entity
+		return fsc.NewRequest().CreateEntities(tctx, car)()
+	})
+
+	if m := assertInCache(ctx, memoryCache, car, t); m == nil {
+		t.Errorf("entity should be not be nill : %v", m)
+	}
 
 	car.Make = "Jeep"
 
@@ -68,34 +81,44 @@ func TestCacheTransaction(t *testing.T) {
 		return nil
 	})
 
-	assertNotInCache(ctx, memoryCache, car, t)
+	assertInCache(ctx, memoryCache, car, t)
 
 	// Delete the entity
 	fsc.NewRequest().DeleteEntities(ctx, car)()
-	assertNotInCache(ctx, memoryCache, car, t)
+	if m := assertInCache(ctx, memoryCache, car, t); len(m) > 0 {
+		t.Errorf("Value should be: %v - but was: %v", "nil", m)
+	}
 }
 
 func assertInSessionCache(ctx context.Context, car *Car, t *testing.T) {
 	cacheKey := fsc.NewRequest().ToRef(car).Path
 	sessionCache := getSessionCache(ctx)
 
-	if sessionCache[cacheKey] == nil {
+	if val, ok := sessionCache[cacheKey]; !ok {
 		t.Errorf("entity not found in session cache : %v", cacheKey)
+		if !cmp.Equal(val, car) {
+			t.Errorf("The elements were not the same %v", cmp.Diff(sessionCache[cacheKey], car))
+		}
 	}
 }
 
 func assertInCache(ctx context.Context, memoryCache *cache.MemoryCache, car *Car, t *testing.T) map[string]interface{} {
 	cacheKey := fsc.NewRequest().ToRef(car).Path
 	sessionCache := getSessionCache(ctx)
+	sesVal, ok := sessionCache[cacheKey]
 
 	assertInSessionCache(ctx, car, t)
 	m := make(map[string]interface{})
-	if err := memoryCache.Get(ctx, cacheKey, &m); err == nil {
+	if err := memoryCache.Get(ctx, cacheKey, &m); err != nil {
+		// a nil value was set for a key
+		if len(m) == 0 && ok && sesVal == nil {
+			return m
+		}
 		t.Errorf("entity not found in cache : %v", cacheKey)
 	}
 
-	if !cmp.Equal(sessionCache[cacheKey], m) {
-		t.Errorf("The elements were not the same %v", cmp.Diff(sessionCache[cacheKey], m))
+	if !cmp.Equal(sesVal, m) {
+		t.Errorf("The elements were not the same %v", cmp.Diff(sesVal, m))
 	}
 	return m
 }
@@ -104,7 +127,7 @@ func assertNotInCache(ctx context.Context, memoryCache *cache.MemoryCache, car *
 	cacheKey := fsc.NewRequest().ToRef(car).Path
 	sessionCache := getSessionCache(ctx)
 
-	if sessionCache[cacheKey] != nil {
+	if _, ok := sessionCache[cacheKey]; ok {
 		t.Errorf("entity should not be in session cache : %v", cacheKey)
 	}
 	m := make(map[string]interface{})

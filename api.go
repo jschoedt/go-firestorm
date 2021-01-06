@@ -22,10 +22,10 @@ func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(tctx context.Co
 	}
 	err := fsc.Client.RunTransaction(ctx, func(ctx context.Context, t *firestore.Transaction) error {
 		// add a new cache to context
-		recCache := newRecordingCache()
+		cache := newDefaultCache()
 		tctx := context.WithValue(ctx, transactionCtxKey, t)
-		tctx = context.WithValue(tctx, SessionCacheKey, make(map[string]interface{}))
-		tctx = context.WithValue(tctx, transCacheKey, newCacheWrapper(fsc.Client, newDefaultCache(), recCache))
+		tctx = context.WithValue(tctx, SessionCacheKey, make(map[string]EntityMap))
+		tctx = context.WithValue(tctx, transCacheKey, newCacheWrapper(fsc.Client, cache, nil))
 
 		// do the updates
 		if err := f(tctx); err != nil {
@@ -33,10 +33,10 @@ func (fsc *FSClient) DoInTransaction(ctx context.Context, f func(tctx context.Co
 		}
 
 		// update cache with transaction cache. For now we just delete all modified keys
-		if err := fsc.getCache(ctx).SetMulti(ctx, recCache.getSetRec()); err != nil {
+		if err := fsc.getCache(ctx).SetMulti(ctx, cache.getSetRec(tctx)); err != nil {
 			log.Printf("Could not set values in cache: %#v", err)
 		}
-		if err := fsc.getCache(ctx).DeleteMulti(ctx, recCache.getDeleteRec()); err != nil {
+		if err := fsc.getCache(ctx).DeleteMulti(ctx, cache.getDeleteRec(tctx)); err != nil {
 			log.Printf("Could not delete keys from cache: %#v", err)
 		}
 
@@ -111,7 +111,7 @@ func (fsc *FSClient) getCachedEntities(ctx context.Context, refs []*firestore.Do
 
 	// fill the res slice with the DB results
 	i := 0
-	multi := make(map[string]map[string]interface{}, len(docs))
+	multi := make(map[string]EntityMap, len(docs))
 	for _, doc := range docs {
 		ref := newCacheRef(doc.Data(), doc.Ref)
 		multi[doc.Ref.Path] = doc.Data()
@@ -136,7 +136,7 @@ func (fsc *FSClient) queryEntities(ctx context.Context, req *Request, p firestor
 		if err != nil {
 			return err
 		}
-		multi := make(map[string]map[string]interface{}, len(docs))
+		multi := make(map[string]EntityMap, len(docs))
 		for _, doc := range docs {
 			multi[doc.Ref.Path] = doc.Data()
 		}

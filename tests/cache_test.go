@@ -40,7 +40,7 @@ func TestCacheCRUD(t *testing.T) {
 
 func TestCacheTransaction(t *testing.T) {
 	ctx := createSessionCacheContext()
-	memoryCache := cache.NewMemoryCache(1*time.Second, 10*time.Minute)
+	memoryCache := cache.NewMemoryCache(5*time.Minute, 10*time.Minute)
 	fsc.SetCache(memoryCache)
 
 	car := &Car{}
@@ -102,14 +102,14 @@ func assertInSessionCache(ctx context.Context, car *Car, t *testing.T) {
 	}
 }
 
-func assertInCache(ctx context.Context, memoryCache *cache.MemoryCache, car *Car, t *testing.T) map[string]interface{} {
+func assertInCache(ctx context.Context, memoryCache *cache.InMemoryCache, car *Car, t *testing.T) map[string]interface{} {
 	cacheKey := fsc.NewRequest().ToRef(car).Path
 	sessionCache := getSessionCache(ctx)
 	sesVal, ok := sessionCache[cacheKey]
 
 	assertInSessionCache(ctx, car, t)
-	m := make(map[string]interface{})
-	if err := memoryCache.Get(ctx, cacheKey, &m); err != nil {
+	m, err := memoryCache.Get(ctx, cacheKey)
+	if err != nil {
 		// a nil value was set for a key
 		if len(m) == 0 && ok && sesVal == nil {
 			return m
@@ -123,15 +123,15 @@ func assertInCache(ctx context.Context, memoryCache *cache.MemoryCache, car *Car
 	return m
 }
 
-func assertNotInCache(ctx context.Context, memoryCache *cache.MemoryCache, car *Car, t *testing.T) {
+func assertNotInCache(ctx context.Context, memoryCache *cache.InMemoryCache, car *Car, t *testing.T) {
 	cacheKey := fsc.NewRequest().ToRef(car).Path
 	sessionCache := getSessionCache(ctx)
 
 	if _, ok := sessionCache[cacheKey]; ok {
 		t.Errorf("entity should not be in session cache : %v", cacheKey)
 	}
-	m := make(map[string]interface{})
-	if err := memoryCache.Get(ctx, cacheKey, &m); err != firestorm.ErrCacheMiss {
+
+	if _, err := memoryCache.Get(ctx, cacheKey); err != firestorm.ErrCacheMiss {
 		t.Errorf("entity should not be in cache : %v", cacheKey)
 	}
 }

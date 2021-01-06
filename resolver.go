@@ -7,15 +7,15 @@ import (
 	"strings"
 )
 
+type entityMap = map[string]interface{}
+type refSet map[string]*firestore.DocumentRef
+type resolveFunc func(m entityMap, ref *firestore.DocumentRef)
+
 // AllEntities loads all paths on the struct see: SetLoadPaths
 const AllEntities = "ALL"
 
 var refType = reflect.TypeOf((*firestore.DocumentRef)(nil))
 var entityType = reflect.TypeOf((entityMap)(nil))
-
-type entityMap = map[string]interface{}
-type refSet = map[string]*firestore.DocumentRef
-type resolveFunc func(m entityMap, ref *firestore.DocumentRef)
 
 type refCollector struct {
 	r                *resolver

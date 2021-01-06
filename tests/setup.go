@@ -34,11 +34,11 @@ func cleanup(entities ...interface{}) {
 
 func createSessionCacheContext() context.Context {
 	ctx := context.Background()
-	return context.WithValue(ctx, firestorm.SessionCacheKey, make(map[string]interface{}))
+	return context.WithValue(ctx, firestorm.SessionCacheKey, make(map[string]firestorm.EntityMap))
 }
 
-func getSessionCache(ctx context.Context) map[string]interface{} {
-	if c, ok := ctx.Value(firestorm.SessionCacheKey).(map[string]interface{}); ok {
+func getSessionCache(ctx context.Context) map[string]firestorm.EntityMap {
+	if c, ok := ctx.Value(firestorm.SessionCacheKey).(map[string]firestorm.EntityMap); ok {
 		return c
 	}
 	return nil

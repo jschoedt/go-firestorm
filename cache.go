@@ -183,6 +183,7 @@ func (c *cacheWrapper) makeCachable(m map[string]interface{}) {
 			case reflect.Slice:
 				if valOf.Len() > 0 {
 					first := valOf.Index(0)
+					// from firestore ref slices are interface type
 					if first.Kind() == reflect.Interface && first.Elem().Type() == refType {
 						refs := make([]string, valOf.Len())
 						for i := 0; i < valOf.Len(); i++ {

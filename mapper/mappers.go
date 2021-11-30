@@ -33,7 +33,7 @@ func New() *Mapper {
 	return m
 }
 
-// NewWithFunc with an custom MapFunc
+// NewWithFunc with a custom MapFunc
 func NewWithFunc(mapperFunc MapFunc) *Mapper {
 	m := &Mapper{mapperFunc}
 	return m

@@ -1,7 +1,6 @@
 package firestorm
 
 import (
-	"cloud.google.com/go/firestore"
 	"context"
 	"errors"
 	"log"
@@ -9,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"cloud.google.com/go/firestore"
 )
 
 var (
@@ -29,6 +30,13 @@ func CacheHandler(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), SessionCacheKey, make(map[string]EntityMap))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// CacheMiddleware can be used as a CacheHandler middleware for popular routing frameworks
+// e.g. gorilla/mux, go-chi, ...
+// r.Use(firestorm.CacheMiddleware)
+func CacheMiddleware(next http.Handler) http.Handler {
+	return CacheHandler(next.ServeHTTP)
 }
 
 // Cache can be used to implement custom caching

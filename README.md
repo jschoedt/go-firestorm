@@ -57,14 +57,9 @@ Parent is optional. The id field must be a string but can be called anything.
 client, _ := app.Firestore(ctx)
 fsc := firestorm.New(client, "ID", "")
 ```
-3. Optional. For optimal caching to work consider adding the CacheHandler. Adds a simple session cache pr. request.
-```go
-http.HandleFunc("/", firestorm.CacheHandler(otherHandler))
-```
-4. Optional. For second level caching eg. Memcache or Redis
-```go
-fsc.SetCache(cache.NewMemCache())
-```
+3. Optional. For optimal caching to work consider adding the [CacheHandler](#cache).
+
+
 #### Basic CRUD example
 
 **Note:** Recursive Create/Delete is not supported and must be called on every entity. So to create an A->B relation. Create B first so the B.ID has been created and then create A.
@@ -204,9 +199,16 @@ if otherCar.Make != "Toyota" {
 [More examples](https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go)
 
 #### Cache
+Firestorm supports adding a session cache to the context.
+The session cache only caches entities that are loaded within the same request.
+```go
+# add it to a single handler:
+http.HandleFunc("/", firestorm.CacheHandler(otherHandler))
+# or add it to the routing chain (for gorilla/mux, go-chi etc.):
+r.Use(firestorm.CacheMiddleware)
+```
 
-To add a second level cache (such as Redis or memcache) you need to implement the Cache interface. Then set it on the client:
-
+To add a second level cache (such as Redis or memcache) the Cache interface needs to be implemented and added to the client:
 ```go
 fsc.SetCache(c)
 ```

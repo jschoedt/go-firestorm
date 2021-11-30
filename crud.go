@@ -12,11 +12,11 @@ func (c contextKey) String() string {
 }
 
 var (
-	contextKeyTransaction = contextKey("transaction")
+	transactionCtxKey = contextKey("transaction")
 )
 
 func getTransaction(ctx context.Context) (*firestore.Transaction, bool) {
-	t, ok := ctx.Value(contextKeyTransaction).(*firestore.Transaction)
+	t, ok := ctx.Value(transactionCtxKey).(*firestore.Transaction)
 	return t, ok
 }
 

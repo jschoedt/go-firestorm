@@ -32,7 +32,8 @@ func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt 
 		if v.Len() > 0 {
 			first := v.Index(0)
 			if fsc.IsEntity(first) {
-				elemSlice := reflect.MakeSlice(reflect.SliceOf(refType), v.Len(), v.Len())
+				// make it interface type so it matches what firestore returns
+				elemSlice := reflect.MakeSlice(reflect.TypeOf([]interface{}(nil)), v.Len(), v.Len())
 				for i := 0; i < v.Len(); i++ {
 					fromEmlPtr := v.Index(i)
 					fromEmlValue := reflect.Indirect(fromEmlPtr)
@@ -65,7 +66,7 @@ func (fsc *FSClient) DefaultFromDBMapperFunc(inKey string, inVal interface{}) (m
 	return mapper.Default, inKey, inVal
 }
 
-func (fsc *FSClient) toEntities(ctx context.Context, entities []entityMap, toSlicePtr interface{}) error {
+func (fsc *FSClient) toEntities(ctx context.Context, entities []map[string]interface{}, toSlicePtr interface{}) error {
 	var errs []string
 	valuePtr := reflect.ValueOf(toSlicePtr)
 	value := reflect.Indirect(valuePtr)

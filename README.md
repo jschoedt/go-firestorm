@@ -6,41 +6,43 @@
 # go-firestorm
 Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relational_mapping)) for [Google Cloud Firestore](https://cloud.google.com/firestore/).
 
-
 #### Goals
 1. Easy to use
-2. Non intrusive
-4. Non exclusive
+2. Non-intrusive
+4. Non-exclusive
 3. Fast
 
 #### Features
 - Basic CRUD operations
 - Search
-- Concurrent requests
+- Concurrent requests support (except when run in transactions)
 - Transactions
+- Nested transactions will reuse the first transaction (reads before writes as required by firestore)
 - Configurable auto load of references
 - Handles cyclic references
 - Sub collections
 - Supports embedded/anonymous structs
 - Supports unexported fields
 - Custom mappers between fields and types
-- Caching
+- Caching (session + second level)
 - Supports Google App Engine - 2. Gen (go version >= 1.11)
 
 
 ## Getting Started
 
-   * [Prerequisites](#prerequisites)
-   * [Basic CRUD example](#basic-crud-example)
-   * [Search](#search)
-   * [Concurrent requests](#concurrent-requests)
-   * [Transactions](#transactions)
-   * [Configurable auto load of references](#configurable-auto-load)
-   * [Help](#help)
+* [Prerequisites](#prerequisites)
+* [Basic CRUD example](#basic-crud-example)
+* [Search](#search)
+* [Concurrent requests](#concurrent-requests)
+* [Transactions](#transactions)
+* [Cache](#cache)
+* [Configurable auto load of references](#configurable-auto-load-of-references)
+* [Help](#help)
 
 
 #### Prerequisites
 
+This library only supports Firestore Native mode and not the old [Datastore](https://cloud.google.com/datastore/docs/firestore-or-datastore) mode.
 ```
 go get -u github.com/jschoedt/go-firestorm
 ```
@@ -55,21 +57,12 @@ Parent is optional. The id field must be a string but can be called anything.
 client, _ := app.Firestore(ctx)
 fsc := firestorm.New(client, "ID", "")
 ```
-##### Cache
-Firestorm supports adding a session cache to the context.
-The session cache only caches entities that are loaded within the same request.
-It does not cache searches (queries).
+3. Optional. For optimal caching to work consider adding the [CacheHandler](#cache).
 
-```go
-# add it to a single handler:
-http.HandleFunc("/", firestorm.CacheHandler(otherHandler))
-# or add it to the routing chain (for gorilla/mux, go-chi etc.):
-r.Use(firestorm.CacheMiddleware)
-```
 
 #### Basic CRUD example
-**Note:** Recursive Create/Delete is not supported and must be called on every entity.
-So to create an A->B relation. Create B first so the B.ID has been created and the create A.
+
+**Note:** Recursive Create/Delete is not supported and must be called on every entity. So to create an A->B relation. Create B first so the B.ID has been created and then create A.
 
 ```go
 type Car struct {
@@ -202,13 +195,32 @@ if otherCar.Make != "Toyota" {
 }
 
 ```
+
 [More examples](https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go)
 
+#### Cache
+Firestorm supports adding a session cache to the context.
+The session cache only caches entities that are loaded within the same request.
+```go
+# add it to a single handler:
+http.HandleFunc("/", firestorm.CacheHandler(otherHandler))
+# or add it to the routing chain (for gorilla/mux, go-chi etc.):
+r.Use(firestorm.CacheMiddleware)
+```
+
+To add a second level cache (such as Redis or memcache) the Cache interface needs to be implemented and added to the client:
+```go
+fsc.SetCache(c)
+```
+
+Firestore will first try to fetch an entity from the session cache. If it is not found it will try the second level cache.
+
 #### Configurable auto load of references
-Use the ```req.SetLoadPaths("fieldName")``` to auto load a particular field
-or ```req.SetLoadPaths(firestorm.AllEntities)``` to load all fields.
+
+Use the ```req.SetLoadPaths("fieldName")``` to auto load a particular field or ```req.SetLoadPaths(firestorm.AllEntities)``` to load all fields.
 
 Load an entity path by adding multiple paths eg.: path->to->field
+
 ```go
 fsc.NewRequest().SetLoadPaths("path", "path.to", "path.to.field").GetEntities(ctx, car)()
 ```

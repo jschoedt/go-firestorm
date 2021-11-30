@@ -2,6 +2,7 @@ package firestorm
 
 import (
 	"cloud.google.com/go/firestore"
+	"context"
 	"github.com/jschoedt/go-firestorm/mapper"
 	"strings"
 )
@@ -42,6 +43,20 @@ func New(client *firestore.Client, id, parent string) *FSClient {
 	return c
 }
 
+// SetCache sets a second level cache besides the session cache. Use it for eg. memcache or redis
+func (fsc *FSClient) SetCache(cache Cache) {
+	fsc.Cache = newCacheWrapper(fsc.Client, newDefaultCache(), cache)
+}
+
+// getCache gets the transaction cache when inside a transaction - otherwise the global cache
+func (fsc *FSClient) getCache(ctx context.Context) *cacheWrapper {
+	if c, ok := ctx.Value(transCacheKey).(*cacheWrapper); ok {
+		return c
+	}
+	return fsc.Cache
+}
+
+// isEntity tests if the i is a firestore entity
 func isEntity(id string) func(i interface{}) bool {
 	return func(i interface{}) bool {
 		_, err := getIDValue(id, i)

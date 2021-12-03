@@ -38,6 +38,7 @@ Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relatio
 * [Transactions](#transactions)
 * [Cache](#cache)
 * [Configurable auto load of references](#configurable-auto-load-of-references)
+* [Customize data mapping](#customize-data-mapping)
 * [Help](#help)
 
 
@@ -225,7 +226,15 @@ Load an entity path by adding multiple paths eg.: path->to->field
 ```go
 fsc.NewRequest().SetLoadPaths("path", "path.to", "path.to.field").GetEntities(ctx, car)()
 ```
+
 [More examples](https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go)
 
+#### Customize data mapping
+
+```go
+fsc.NewRequest().SetLoadPaths("path", "path.to", "path.to.field").GetEntities(ctx, car)()
+```
+
 #### Help
+
 Help is provided in the [go-firestorm User Group](https://groups.google.com/forum/?fromgroups#!forum/go-firestorm)

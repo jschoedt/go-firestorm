@@ -11,6 +11,7 @@ import (
 
 // DefaultToDBMapperFunc default mapper that maps entity fields and values to be firestore fields and values
 func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MappingType, outKey string, outVal interface{}) {
+	inKey = strings.ToLower(inKey)
 	// do not save as it is the id of the document
 	switch inKey {
 	case "id":
@@ -63,10 +64,10 @@ func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt 
 
 // DefaultFromDBMapperFunc default mapper that maps firestore fields and values to entity fields and values
 func (fsc *FSClient) DefaultFromDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MappingType, outKey string, outVal interface{}) {
-	return mapper.Default, inKey, inVal
+	return mapper.Default, strings.Title(inKey), inVal
 }
 
-func (fsc *FSClient) toEntities(ctx context.Context, entities []map[string]interface{}, toSlicePtr interface{}) error {
+func (fsc *FSClient) toEntities(ctx context.Context, entities []entityMap, toSlicePtr interface{}) error {
 	var errs []string
 	valuePtr := reflect.ValueOf(toSlicePtr)
 	value := reflect.Indirect(valuePtr)

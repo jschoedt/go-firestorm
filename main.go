@@ -4,7 +4,6 @@ import (
 	"cloud.google.com/go/firestore"
 	"context"
 	mapper "github.com/jschoedt/go-structmapper"
-	"strings"
 )
 
 // FSClient is the client used to perform the CRUD actions
@@ -36,8 +35,8 @@ func New(client *firestore.Client, id, parent string) *FSClient {
 	c.MapToDB.MapFunc = c.DefaultToDBMapperFunc
 	c.MapFromDB = mapper.New()
 	c.MapFromDB.MapFunc = c.DefaultFromDBMapperFunc
-	c.IDKey = strings.ToLower(id)
-	c.ParentKey = strings.ToLower(parent)
+	c.IDKey = id
+	c.ParentKey = parent
 	c.Cache = newCacheWrapper(client, newDefaultCache(), nil)
 	c.IsEntity = isEntity(c.IDKey)
 	return c

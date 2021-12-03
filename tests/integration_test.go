@@ -91,7 +91,7 @@ func testSearch_(ctx context.Context, t *testing.T) {
 
 	result := make([]Car, 0)
 	if err := fsc.NewRequest().QueryEntities(ctx, query, &result)(); err != nil {
-		t.Errorf("car was not found by search: %v", car)
+		t.Errorf("car was not found by search: %v", err)
 	}
 
 	if result[0].ID != car.ID || result[0].Make != car.Make {
@@ -327,7 +327,7 @@ func testNestedRefs_(ctx context.Context, t *testing.T) {
 	p := &Person{ID: john.ID}
 	fsc.NewRequest().SetLoadPaths("friends").GetEntities(ctx, p)()
 	if !cmp.Equal(john, p) {
-		t.Errorf("The structs were not the same %v - %v", john, p)
+		t.Errorf("The structs were not the same %v - %v DIFF: %v", john, p, cmp.Diff(john, p))
 	}
 }
 

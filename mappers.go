@@ -3,14 +3,14 @@ package firestorm
 import (
 	"context"
 	"errors"
-	"github.com/jschoedt/go-firestorm/mapper"
+	mapper "github.com/jschoedt/go-structmapper"
 	"reflect"
 	"strings"
 	"time"
 )
 
 // DefaultToDBMapperFunc default mapper that maps entity fields and values to be firestore fields and values
-func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MapppingType, outKey string, outVal interface{}) {
+func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MappingType, outKey string, outVal interface{}) {
 	// do not save as it is the id of the document
 	switch inKey {
 	case "id":
@@ -62,7 +62,7 @@ func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt 
 }
 
 // DefaultFromDBMapperFunc default mapper that maps firestore fields and values to entity fields and values
-func (fsc *FSClient) DefaultFromDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MapppingType, outKey string, outVal interface{}) {
+func (fsc *FSClient) DefaultFromDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MappingType, outKey string, outVal interface{}) {
 	return mapper.Default, inKey, inVal
 }
 
@@ -92,7 +92,7 @@ func (fsc *FSClient) toEntity(ctx context.Context, m map[string]interface{}, typ
 	}
 
 	p := reflect.New(typ)
-	err := fsc.MapFromDB.MapTo(m, p.Interface())
+	err := fsc.MapFromDB.MapToStruct(m, p.Interface())
 
 	if isPtr {
 		return p, err

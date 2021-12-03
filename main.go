@@ -3,7 +3,7 @@ package firestorm
 import (
 	"cloud.google.com/go/firestore"
 	"context"
-	"github.com/jschoedt/go-firestorm/mapper"
+	mapper "github.com/jschoedt/go-structmapper"
 	"strings"
 )
 
@@ -33,9 +33,9 @@ func New(client *firestore.Client, id, parent string) *FSClient {
 	c := &FSClient{}
 	c.Client = client
 	c.MapToDB = mapper.New()
-	c.MapToDB.MapperFunc = c.DefaultToDBMapperFunc
+	c.MapToDB.MapFunc = c.DefaultToDBMapperFunc
 	c.MapFromDB = mapper.New()
-	c.MapFromDB.MapperFunc = c.DefaultFromDBMapperFunc
+	c.MapFromDB.MapFunc = c.DefaultFromDBMapperFunc
 	c.IDKey = strings.ToLower(id)
 	c.ParentKey = strings.ToLower(parent)
 	c.Cache = newCacheWrapper(client, newDefaultCache(), nil)

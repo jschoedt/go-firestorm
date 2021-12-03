@@ -2,6 +2,7 @@
 [![coverage report](https://gitlab.com/jens.schoedt/go-firestorm/badges/master/coverage.svg)](https://gitlab.com/jens.schoedt/go-firestorm/commits/master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jschoedt/go-firestorm)](https://goreportcard.com/report/github.com/jschoedt/go-firestorm)
 [![GoDoc](https://godoc.org/github.com/jschoedt/go-firestorm?status.svg)](https://godoc.org/github.com/jschoedt/go-firestorm)
+[![GitHub](https://img.shields.io/github/license/jschoedt/go-firestorm)](https://github.com/jschoedt/go-firestorm/blob/master/LICENSE)
 
 # go-firestorm
 Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relational_mapping)) for [Google Cloud Firestore](https://cloud.google.com/firestore/).

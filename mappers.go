@@ -64,7 +64,7 @@ func (fsc *FSClient) DefaultToDBMapperFunc(inKey string, inVal interface{}) (mt 
 
 // DefaultFromDBMapperFunc default mapper that maps firestore fields and values to entity fields and values
 func (fsc *FSClient) DefaultFromDBMapperFunc(inKey string, inVal interface{}) (mt mapper.MappingType, outKey string, outVal interface{}) {
-	return mapper.Default, strings.Title(inKey), inVal
+	return mapper.NilMapFunc(strings.Title(inKey), inVal)
 }
 
 func (fsc *FSClient) toEntities(ctx context.Context, entities []entityMap, toSlicePtr interface{}) error {

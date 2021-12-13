@@ -35,6 +35,7 @@ func New(client *firestore.Client, id, parent string) *FSClient {
 	c.MapToDB.MapFunc = c.DefaultToDBMapperFunc
 	c.MapFromDB = mapper.New()
 	c.MapFromDB.MapFunc = c.DefaultFromDBMapperFunc
+	c.MapFromDB.CaseSensitive = false
 	c.IDKey = id
 	c.ParentKey = parent
 	c.Cache = newCacheWrapper(client, newDefaultCache(), nil)

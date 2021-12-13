@@ -230,9 +230,12 @@ fsc.NewRequest().SetLoadPaths("path", "path.to", "path.to.field").GetEntities(ct
 [More examples](https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go)
 
 #### Customize data mapping
+This library uses [go-structmapper](https://github.com/jschoedt/go-structmapper) for mapping values between Firestore and structs. The mapping can be customized by setting the
+mappers:
 
 ```go
-fsc.NewRequest().SetLoadPaths("path", "path.to", "path.to.field").GetEntities(ctx, car)()
+fsc.MapToDB = mapper.New()
+fsc.MapFromDB = mapper.New()
 ```
 
 #### Help

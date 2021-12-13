@@ -2,6 +2,7 @@
 [![coverage report](https://gitlab.com/jens.schoedt/go-firestorm/badges/master/coverage.svg)](https://gitlab.com/jens.schoedt/go-firestorm/commits/master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jschoedt/go-firestorm)](https://goreportcard.com/report/github.com/jschoedt/go-firestorm)
 [![GoDoc](https://godoc.org/github.com/jschoedt/go-firestorm?status.svg)](https://godoc.org/github.com/jschoedt/go-firestorm)
+[![GitHub](https://img.shields.io/github/license/jschoedt/go-firestorm)](https://github.com/jschoedt/go-firestorm/blob/master/LICENSE)
 
 # go-firestorm
 Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relational_mapping)) for [Google Cloud Firestore](https://cloud.google.com/firestore/).
@@ -37,6 +38,7 @@ Go ORM ([Object-relational mapping](https://en.wikipedia.org/wiki/Object-relatio
 * [Transactions](#transactions)
 * [Cache](#cache)
 * [Configurable auto load of references](#configurable-auto-load-of-references)
+* [Customize data mapping](#customize-data-mapping)
 * [Help](#help)
 
 
@@ -224,7 +226,18 @@ Load an entity path by adding multiple paths eg.: path->to->field
 ```go
 fsc.NewRequest().SetLoadPaths("path", "path.to", "path.to.field").GetEntities(ctx, car)()
 ```
+
 [More examples](https://github.com/jschoedt/go-firestorm/blob/master/tests/integration_test.go)
 
+#### Customize data mapping
+This library uses [go-structmapper](https://github.com/jschoedt/go-structmapper) for mapping values between Firestore and structs. The mapping can be customized by setting the
+mappers:
+
+```go
+fsc.MapToDB = mapper.New()
+fsc.MapFromDB = mapper.New()
+```
+
 #### Help
+
 Help is provided in the [go-firestorm User Group](https://groups.google.com/forum/?fromgroups#!forum/go-firestorm)

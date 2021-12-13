@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 // Request a request builder for querying firestore
@@ -86,7 +85,7 @@ func getIDValue(id string, entity interface{}) (reflect.Value, error) {
 			}
 
 			// first check if id is statically set
-			if strings.ToLower(sf.Name) == id {
+			if sf.Name == id {
 				return f, nil
 			}
 			// otherwise use the tag

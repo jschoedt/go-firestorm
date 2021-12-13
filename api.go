@@ -72,7 +72,7 @@ func (fsc *FSClient) getEntities(ctx context.Context, req *Request, sliceVal ref
 
 		for i, v := range res {
 			if len(v) > 0 {
-				fsc.MapFromDB.MapTo(v, slice.Index(i).Interface())
+				fsc.MapFromDB.MapToStruct(v, slice.Index(i).Interface())
 				result = append(result, slice.Index(i).Interface())
 			}
 		}
@@ -155,7 +155,7 @@ func (fsc *FSClient) queryEntities(ctx context.Context, req *Request, p firestor
 
 func (fsc *FSClient) createEntity(ctx context.Context, req *Request, entity interface{}) FutureFunc {
 	asyncFunc := func() error {
-		m, err := fsc.MapToDB.MapStructToMap(entity)
+		m, err := fsc.MapToDB.StructToMap(entity)
 		if err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func (fsc *FSClient) createEntities(ctx context.Context, req *Request, sliceVal 
 
 func (fsc *FSClient) updateEntity(ctx context.Context, req *Request, entity interface{}) FutureFunc {
 	asyncFunc := func() error {
-		m, err := fsc.MapToDB.MapStructToMap(entity)
+		m, err := fsc.MapToDB.StructToMap(entity)
 		if err != nil {
 			return err
 		}
